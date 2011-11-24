@@ -66,9 +66,9 @@ Javascript Korean IME / 한글입력기
 
 
 <script type="text/javascript">
-hangulIM_Obj = new JS_IM( document.getElementById( 'hangulime' ), JS_IM_hangul );
-hangulIM_for_search_Obj = new JS_IM( document.getElementById( 'hangulime_for_search' ), JS_IM_hangul );
-hangulIM_adsense_Obj = new JS_IM( document.getElementById( 'hangulIM_adsense' ), JS_IM_hangul );
+hangulIM_Obj = new JSIM( document.getElementById( 'hangulime' ), JSIM_hangul4 );
+hangulIM_for_search_Obj = new JSIM( document.getElementById( 'hangulime_for_search' ), JSIM_hangul4 );
+hangulIM_adsense_Obj = new JSIM( document.getElementById( 'hangulIM_adsense' ), JSIM_hangul4 );
 function hangulIM_Search(){ // requires hangulIM_for_search_Obj
   var queryWord = hangulIM_for_search_Obj.imeBox.value;
   var baseUrl = document.getElementById( 'engineList' ).value;
