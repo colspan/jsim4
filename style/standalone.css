@@ -1,0 +1,57 @@
+body{
+font-size:10pt;
+font-family:Malgun Gothic,Verdana;
+background:white;
+}
+form{
+margin:1px;
+}
+textarea,input[type="text"]{
+font-size:10pt;
+font-family: Verdana;
+}
+input[type="submit"]{
+font-size:8pt;
+}
+h1{
+margin:0 2px;
+}
+h2{
+margin:40px 3px 20px 3px;
+font-size:14pt;
+}
+#hangulime,#japaneseime{
+margin-top:10px;
+width:400px;
+height:150px;
+font-size:12pt;
+}
+
+img{
+border:0;
+}
+#version{
+font-size:8pt;
+margin: 8px 0;
+}
+#credit{
+font-size:8pt;
+margin-top:10px;
+float:left;
+width:200px;
+}
+#explanation{
+width:200px;
+font-size:8pt;
+margin-top:10px;
+float:left;
+}
+
+
+#hangulIM_adsense,#hangulime_for_search{
+width:270px;
+}
+
+.searchbox{
+width:250px;
+}
