@@ -1,113 +1,722 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 TRANSITIONAL//EN">
-<html>
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
 <head>
-<title>Hangul IME</title>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta name="keywords" content="한글 입력기,Hangul IME,Korean IME,Javascript Hangul IME,Javascript Korean IME,Web IME,Javascript IME,Javascript Web IME,gksrmfdlqfurrl" />
-<meta name="description" content="자바스크립트로 만든 한극 입력기.Hangul IME built on Javascript.gksrmfdlqfurrl." />
-<link rel="stylesheet" href="style/style.css">
-<link rel="stylesheet" href="style/standalone.css">
-<link rel="shortcut icon" type="image/x-icon" href="./favicon.ico" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한국어 IME — 두벌식 · JSIM</title>
+<meta name="description" content="브라우저에서 바로 쓰는 두벌식 한글 입력기. 초성·중성·종성을 실시간으로 조합하고 복합 모음과 겹받침도 지원합니다.">
+<meta name="theme-color" content="#0b1020">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237c9cff'/%3E%3Ctext x='32' y='43' font-size='30' text-anchor='middle' fill='white' font-family='system-ui'%3E%E1%84%92%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #080b14;
+    --bg-soft: #0d1222;
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-strong: rgba(255, 255, 255, 0.085);
+    --border: rgba(255, 255, 255, 0.11);
+    --text: #eef2ff;
+    --muted: #9aa6c4;
+    --accent: #7c9cff;
+    --accent-2: #6ee7c7;
+    --accent-3: #ffb86b;
+    --danger: #ff7a90;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    --radius: 18px;
+    --font: "Inter", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f7ff;
+    --bg-soft: #e9edff;
+    --surface: rgba(255, 255, 255, 0.74);
+    --surface-strong: rgba(255, 255, 255, 0.96);
+    --border: rgba(20, 30, 70, 0.12);
+    --text: #131a30;
+    --muted: #5d6884;
+    --accent: #3f5cff;
+    --accent-2: #0f9f83;
+    --accent-3: #c46a00;
+    --danger: #d93b5c;
+    --shadow: 0 24px 80px rgba(40, 60, 140, 0.16);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(124, 156, 255, 0.2), transparent 60%),
+      radial-gradient(900px 700px at 95% 0%, rgba(110, 231, 199, 0.16), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .wrap { width: min(1180px, calc(100% - 36px)); margin: 0 auto; }
+
+  header.app-header {
+    position: sticky; top: 0; z-index: 40;
+    backdrop-filter: blur(18px);
+    background: color-mix(in srgb, var(--bg) 76%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-inner { display: flex; align-items: center; gap: 14px; min-height: 66px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .brand:hover { text-decoration: none; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #07101f; font-size: 18px; font-weight: 900;
+    box-shadow: 0 8px 22px rgba(124, 156, 255, 0.3);
+  }
+  .brand small { display: block; font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.1em; }
+  .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 11px; padding: 8px 13px; font-size: 13px; font-weight: 700;
+    transition: 0.18s ease; white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-strong); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #5b7cff); border-color: transparent; color: #fff; box-shadow: 0 10px 26px rgba(91, 124, 255, 0.32); }
+  .btn.icon { width: 36px; height: 36px; padding: 0; font-size: 16px; }
+  .btn.danger { color: var(--danger); }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 11px; font-size: 12px; font-weight: 800; color: var(--muted);
+    background: var(--surface);
+  }
+  .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .status-pill.on { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); }
+  .status-pill.on .dot { background: var(--accent-2); box-shadow: 0 0 10px var(--accent-2); }
+  .status-pill.off .dot { background: var(--danger); }
+
+  main.app { padding: 28px 0 60px; }
+  .app-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+  .panel {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: linear-gradient(160deg, var(--surface-strong), var(--surface));
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .panel-head .title { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+  .panel-head .sub { font-size: 12px; color: var(--muted); }
+  .spacer { flex: 1; }
+
+  .editor-wrap { position: relative; padding: 16px; }
+  textarea#editor {
+    display: block; width: 100%; min-height: 340px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 13px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    color: var(--text); padding: 16px 18px;
+    font-family: var(--font); font-size: 19px; line-height: 1.9;
+    outline: none; transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    caret-color: var(--accent-2);
+  }
+  textarea#editor:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+  textarea#editor::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+
+  .editor-footer {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 0 16px 14px; font-size: 12px; color: var(--muted);
+  }
+  .editor-footer .grow { flex: 1; }
+  .kbd-hint { font-size: 12px; color: var(--muted); }
+  kbd {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    border: 1px solid var(--border); border-bottom-width: 2px;
+    background: var(--surface-strong); border-radius: 6px;
+    padding: 1px 6px; white-space: nowrap;
+  }
+
+  .side { display: grid; gap: 14px; }
+  .card {
+    border: 1px solid var(--border); border-radius: 15px;
+    background: var(--surface); padding: 16px;
+  }
+  .card h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .jamo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .jamo-box { border: 1px solid var(--border); border-radius: 11px; padding: 10px 8px; text-align: center; background: var(--surface-strong); }
+  .jamo-box .k { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+  .jamo-box .v { font-size: 22px; font-weight: 800; margin-top: 3px; min-height: 30px; }
+  .jamo-box .v.empty { color: color-mix(in srgb, var(--muted) 50%, transparent); font-weight: 400; }
+  .composed-preview { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .composed-preview .char { font-size: 30px; font-weight: 800; color: var(--accent-3); }
+
+  .key-list { display: grid; gap: 7px; }
+  .key-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+  .key-row .keys { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
+
+  .sample { font-size: 13px; color: var(--muted); }
+  .sample button { margin-top: 10px; width: 100%; }
+
+  footer.app-footer { border-top: 1px solid var(--border); padding: 24px 0 40px; font-size: 12px; color: var(--muted); }
+  footer.app-footer .links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg); border-radius: 10px;
+    padding: 9px 16px; font-size: 13px; font-weight: 700;
+    opacity: 0; pointer-events: none; transition: 0.2s ease; z-index: 90;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 980px) {
+    .app-grid { grid-template-columns: 1fr; }
+    .side { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 680px) {
+    .wrap { width: calc(100% - 24px); }
+    .header-inner { gap: 8px; }
+    .brand small { display: none; }
+    .header-actions .label { display: none; }
+    textarea#editor { min-height: 260px; font-size: 17px; }
+    .side { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
 </head>
 <body>
-
-
-<h1><img src="style/logo.png" alt="Hangul IME"></h1>
-
-<div id="version">
-<a href="http://hangulime.com/">http://hangulime.com/</a><br />
-Javascript Korean IME / 한글입력기
-4.00 beta (2009/08/13)<br />
-</div>
-
-<script type="text/javascript" src='lib/jsim_common.js'></script>
-<script type="text/javascript" src='lib/jsim_keycode.js'></script>
-<script type="text/javascript" src='lib/jsim_caret.js'></script>
-<script type="text/javascript" src='lib/jsim.js'></script>
-<script type="text/javascript" src='lib/johab.js'></script>
-<script type="text/javascript" src='lib/jsim_hangul.js'></script>
-
-
-<style type="text/css">
-@import url(http://www.google.com/cse/api/branding.css);
-</style>
-<div class="cse-branding-right" style="background-color:#FFFFFF;color:#000000">
-  <div class="cse-branding-form">
-	<form action="http://www.google.co.kr/cse" id="cse-search-box" target="_blank">
-	  <div>
-		<input type="hidden" name="cx" value="partner-pub-3971375039517858:8s2nah-bv7j" />
-		<input type="hidden" name="ie" value="UTF-8" />
-		<input type="text" name="q" size="38" id="hangulIM_adsense" />
-		<input type="submit" name="sa" value="&#xac80;&#xc0c9;" />
-	  </div>
-	</form>
+<header class="app-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">한</span>
+      <span>JSIM<small>KOREAN IME</small></span>
+    </a>
+    <span id="ime-pill" class="status-pill on"><span class="dot"></span><span id="ime-pill-text">한글 입력 ON</span></span>
+    <div class="header-actions">
+      <button class="btn" id="toggle-btn" type="button" title="한/영 전환 (Ctrl+Space, Shift+Space)"><span class="label">한 / 영</span></button>
+      <a class="btn" href="index.html"><span class="label">홈</span></a>
+      <button class="btn icon" id="theme-btn" type="button" aria-label="테마 전환" title="테마 전환">◐</button>
+    </div>
   </div>
-  <div class="cse-branding-logo">
-	<img src="http://www.google.com/images/poweredby_transparent/poweredby_FFFFFF.gif" alt="Google" />
+</header>
+
+<main class="app">
+  <div class="wrap app-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <span class="title">한글 입력</span>
+        <span class="sub">두벌식 · 실시간 조합</span>
+        <span class="spacer"></span>
+        <button class="btn" id="sample-btn" type="button">예문</button>
+        <button class="btn" id="copy-btn" type="button">복사</button>
+        <button class="btn danger" id="clear-btn" type="button">지우기</button>
+      </div>
+      <div class="editor-wrap">
+        <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="여기를 클릭하고 두벌식으로 입력하세요. 예: gksrmf → 한글"></textarea>
+      </div>
+      <div class="editor-footer">
+        <span id="char-count">0 자</span>
+        <span class="grow"></span>
+        <span class="kbd-hint"><kbd>Ctrl</kbd>+<kbd>Space</kbd> 또는 <kbd>Shift</kbd>+<kbd>Space</kbd> 로 한/영 전환</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Composition</h3>
+        <div class="jamo-grid">
+          <div class="jamo-box"><div class="k">초성</div><div class="v empty" id="jamo-initial">—</div></div>
+          <div class="jamo-box"><div class="k">중성</div><div class="v empty" id="jamo-medial">—</div></div>
+          <div class="jamo-box"><div class="k">종성</div><div class="v empty" id="jamo-final">—</div></div>
+        </div>
+        <div class="composed-preview">
+          <span>현재 글자</span>
+          <span class="char" id="composed-char">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Key bindings</h3>
+        <div class="key-list">
+          <div class="key-row"><span>한 / 영 전환</span><span class="keys"><kbd>Ctrl</kbd><kbd>Space</kbd> / <kbd>Shift</kbd><kbd>Space</kbd></span></div>
+          <div class="key-row"><span>한글 ON</span><span class="keys"><kbd>한/영</kbd> / <kbd>Alt</kbd><kbd>`</kbd></span></div>
+          <div class="key-row"><span>영문 OFF</span><span class="keys"><kbd>英数</kbd> / <kbd>Ctrl</kbd><kbd>Space</kbd></span></div>
+          <div class="key-row"><span>조합 취소</span><span class="keys"><kbd>Esc</kbd></span></div>
+          <div class="key-row"><span>한 글자 삭제</span><span class="keys"><kbd>Backspace</kbd></span></div>
+          <div class="key-row"><span>줄바꿈 / 띄어쓰기</span><span class="keys"><kbd>Enter</kbd> / <kbd>Space</kbd></span></div>
+          <div class="key-row"><span>실행 취소 / 다시 실행</span><span class="keys"><kbd>Ctrl</kbd><kbd>Z</kbd> / <kbd>Ctrl</kbd><kbd>Y</kbd></span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Tips</h3>
+        <p class="sample">OS의 한국어 IME를 끄고 사용하세요. Shift는 쌍자음(ㅃㅉㄸㄲㅆ)과 ㅒ/ㅖ에 사용됩니다. 복합 모음(ㅘㅙㅚㅝㅞㅟㅢ)과 겹받침도 자동으로 조합됩니다.</p>
+        <button class="btn" id="toggle-btn-2" type="button">한 / 영 전환</button>
+      </div>
+    </aside>
   </div>
-  <div class="cse-branding-text">
-	&#47582;&#52644;&#44160;&#49353;
+</main>
+
+<footer class="app-footer">
+  <div class="wrap">
+    <div>Original Hangul engine by <a href="http://colspan.net/" target="_blank" rel="noopener">Colspan</a> (MIT) · 두벌식 automaton rebuilt for the modern web</div>
+    <div class="links">
+      <a href="index.html">홈</a>
+      <a href="japanese.html">일본어 IME</a>
+      <a href="THIRD_PARTY_NOTICES.md">라이선스</a>
+      <a href="https://github.com/colspan/jsim4" target="_blank" rel="noopener">GitHub</a>
+    </div>
   </div>
-</div>
+</footer>
 
-<form name="search" onsubmit="hangulIM_Search();return false;">
-<input type="text" id="hangulime_for_search" size="38">
-<input type="submit" name="search" value="&#xac80;&#xc0c9;">
-<select name="engine" id="engineList">
-<option value="http://search.naver.com/search.naver?query=">Naver</option>
-<option value="http://search.daum.net/search?q=">Daum</option>
-</select>
-</form>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<form name="imeForm" onsubmit="return false;">
-<textarea id="hangulime"></textarea><br />
-<button id="twit_button" onclick="jsIM_Twit('twitter');"><img src="style/twitter.png" width=16 height=16 alt="Twit this on twitter"></button>
-</form>
+<script>
+(() => {
+  "use strict";
 
+  const $ = (id) => document.getElementById(id);
+  const editor = $("editor");
+  const imePill = $("ime-pill");
+  const imePillText = $("ime-pill-text");
+  const charCount = $("char-count");
+  const toastEl = $("toast");
+  const themeBtn = $("theme-btn");
+  const jamoInitial = $("jamo-initial");
+  const jamoMedial = $("jamo-medial");
+  const jamoFinal = $("jamo-final");
+  const composedChar = $("composed-char");
 
-<script type="text/javascript">
-hangulIM_Obj = new JSIM( document.getElementById( 'hangulime' ), JSIM_hangul4 );
-hangulIM_for_search_Obj = new JSIM( document.getElementById( 'hangulime_for_search' ), JSIM_hangul4 );
-hangulIM_adsense_Obj = new JSIM( document.getElementById( 'hangulIM_adsense' ), JSIM_hangul4 );
-function hangulIM_Search(){ // requires hangulIM_for_search_Obj
-  var queryWord = hangulIM_for_search_Obj.imeBox.value;
-  var baseUrl = document.getElementById( 'engineList' ).value;
-  var url = baseUrl + encodeURIComponent( queryWord );
-  window.open( url, '_blank' );
-}
+  let active = true;
 
-function jsIM_Twit(service_name){
-	var statusWord = hangulIM_Obj.imeBox.value;
-	var baseUrl = "http://twitter.com/?status=";
-	var url = baseUrl + encodeURIComponent( statusWord );
-	window.open( url, "_blank" );
-}
+  // ---- Hangul tables ---------------------------------------------------------
 
+  const INITIALS = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+  const MEDIALS = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
+  const FINALS = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+
+  const INITIAL_SET = new Set(INITIALS);
+  const MEDIAL_SET = new Set(MEDIALS);
+  const FINAL_SET = new Set(FINALS.slice(1));
+
+  const COMPOUND_VOWELS = {
+    "ㅗㅏ": "ㅘ", "ㅗㅐ": "ㅙ", "ㅗㅣ": "ㅚ",
+    "ㅜㅓ": "ㅝ", "ㅜㅔ": "ㅞ", "ㅜㅣ": "ㅟ",
+    "ㅡㅣ": "ㅢ",
+    "ㅏㅣ": "ㅐ", "ㅓㅣ": "ㅔ", "ㅑㅣ": "ㅒ", "ㅕㅣ": "ㅖ"
+  };
+  const COMPOUND_VOWEL_FIRST = {
+    "ㅘ": "ㅗ", "ㅙ": "ㅗ", "ㅚ": "ㅗ",
+    "ㅝ": "ㅜ", "ㅞ": "ㅜ", "ㅟ": "ㅜ",
+    "ㅢ": "ㅡ",
+    "ㅐ": "ㅏ", "ㅔ": "ㅓ", "ㅒ": "ㅑ", "ㅖ": "ㅕ"
+  };
+  const COMPOUND_FINALS = {
+    "ㄱㅅ": "ㄳ", "ㄴㅈ": "ㄵ", "ㄴㅎ": "ㄶ",
+    "ㄹㄱ": "ㄺ", "ㄹㅁ": "ㄻ", "ㄹㅂ": "ㄼ",
+    "ㄹㅅ": "ㄽ", "ㄹㅌ": "ㄾ", "ㄹㅍ": "ㄿ",
+    "ㄹㅎ": "ㅀ", "ㅂㅅ": "ㅄ"
+  };
+  const COMPOUND_FINAL_FIRST = {
+    "ㄳ": "ㄱ", "ㄵ": "ㄴ", "ㄶ": "ㄴ",
+    "ㄺ": "ㄹ", "ㄻ": "ㄹ", "ㄼ": "ㄹ",
+    "ㄽ": "ㄹ", "ㄾ": "ㄹ", "ㄿ": "ㄹ",
+    "ㅀ": "ㄹ", "ㅄ": "ㅂ"
+  };
+  const SPLIT_FINAL = {
+    "ㄳ": { remaining: "ㄱ", nextInitial: "ㅅ" },
+    "ㄵ": { remaining: "ㄴ", nextInitial: "ㅈ" },
+    "ㄶ": { remaining: "ㄴ", nextInitial: "ㅎ" },
+    "ㄺ": { remaining: "ㄹ", nextInitial: "ㄱ" },
+    "ㄻ": { remaining: "ㄹ", nextInitial: "ㅁ" },
+    "ㄼ": { remaining: "ㄹ", nextInitial: "ㅂ" },
+    "ㄽ": { remaining: "ㄹ", nextInitial: "ㅅ" },
+    "ㄾ": { remaining: "ㄹ", nextInitial: "ㅌ" },
+    "ㄿ": { remaining: "ㄹ", nextInitial: "ㅍ" },
+    "ㅀ": { remaining: "ㄹ", nextInitial: "ㅎ" },
+    "ㅄ": { remaining: "ㅂ", nextInitial: "ㅅ" }
+  };
+
+  const DUBEOLSIK = {
+    KeyQ: ["ㅂ", "ㅃ"], KeyW: ["ㅈ", "ㅉ"], KeyE: ["ㄷ", "ㄸ"], KeyR: ["ㄱ", "ㄲ"],
+    KeyT: ["ㅅ", "ㅆ"], KeyY: ["ㅛ"], KeyU: ["ㅕ"], KeyI: ["ㅑ"], KeyO: ["ㅐ", "ㅒ"],
+    KeyP: ["ㅔ", "ㅖ"], KeyA: ["ㅁ"], KeyS: ["ㄴ"], KeyD: ["ㅇ"], KeyF: ["ㄹ"],
+    KeyG: ["ㅎ"], KeyH: ["ㅗ"], KeyJ: ["ㅓ"], KeyK: ["ㅏ"], KeyL: ["ㅣ"],
+    KeyZ: ["ㅋ"], KeyX: ["ㅌ"], KeyC: ["ㅊ"], KeyV: ["ㅍ"], KeyB: ["ㅠ"],
+    KeyN: ["ㅜ"], KeyM: ["ㅡ"]
+  };
+
+  function jamoFromKey(e) {
+    const pair = DUBEOLSIK[e.code];
+    if (!pair) return null;
+    return e.shiftKey ? (pair[1] || pair[0]) : pair[0];
+  }
+
+  // ---- composition state -----------------------------------------------------
+
+  const state = { initial: null, medial: null, final: null };
+  let prefix = "";
+  let suffix = "";
+
+  const hasComposition = () => !!(state.initial || state.medial || state.final);
+  const resetState = () => { state.initial = null; state.medial = null; state.final = null; };
+
+  // ---- undo / redo -----------------------------------------------------------
+
+  const undoStack = [];
+  const redoStack = [];
+
+  function snapshot() {
+    undoStack.push({ value: editor.value, start: editor.selectionStart, end: editor.selectionEnd });
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+  }
+
+  function restore(snap) {
+    editor.value = snap.value;
+    editor.setSelectionRange(snap.start, snap.end);
+    updateCharCount();
+    updateBreakdown();
+  }
+
+  function undo() {
+    if (hasComposition()) cancelComposition();
+    const snap = undoStack.pop();
+    if (!snap) return;
+    redoStack.push({ value: editor.value, start: editor.selectionStart, end: editor.selectionEnd });
+    restore(snap);
+  }
+
+  function redo() {
+    if (hasComposition()) cancelComposition();
+    const snap = redoStack.pop();
+    if (!snap) return;
+    undoStack.push({ value: editor.value, start: editor.selectionStart, end: editor.selectionEnd });
+    restore(snap);
+  }
+
+  function compose() {
+    if (state.initial && state.medial) {
+      const i = INITIALS.indexOf(state.initial);
+      const m = MEDIALS.indexOf(state.medial);
+      const f = FINALS.indexOf(state.final || "");
+      return String.fromCharCode(0xAC00 + (i * 21 + m) * 28 + f);
+    }
+    if (state.initial) return state.initial;
+    if (state.medial) return state.medial;
+    return "";
+  }
+
+  function pushConsonant(c) {
+    if (!state.initial) {
+      if (state.medial) {
+        prefix += state.medial;
+        state.medial = null;
+      }
+      state.initial = c;
+      return;
+    }
+    if (!state.medial) {
+      prefix += state.initial;
+      state.initial = c;
+      return;
+    }
+    if (!state.final) {
+      if (FINAL_SET.has(c)) { state.final = c; return; }
+      prefix += compose();
+      resetState();
+      state.initial = c;
+      return;
+    }
+    const compound = COMPOUND_FINALS[state.final + c];
+    if (compound) { state.final = compound; return; }
+    prefix += compose();
+    resetState();
+    state.initial = c;
+  }
+
+  function pushVowel(v) {
+    if (!state.initial) {
+      if (!state.medial) { state.medial = v; return; }
+      const compound = COMPOUND_VOWELS[state.medial + v];
+      if (compound) { state.medial = compound; return; }
+      prefix += state.medial;
+      state.medial = v;
+      return;
+    }
+    if (!state.medial) { state.medial = v; return; }
+    if (state.final) {
+      const split = SPLIT_FINAL[state.final] || { remaining: null, nextInitial: state.final };
+      state.final = split.remaining;
+      prefix += compose();
+      resetState();
+      state.initial = split.nextInitial;
+      state.medial = v;
+      return;
+    }
+    const compound = COMPOUND_VOWELS[state.medial + v];
+    if (compound) { state.medial = compound; return; }
+    prefix += compose();
+    resetState();
+    state.medial = v;
+  }
+
+  function backspaceComposing() {
+    if (state.final) {
+      state.final = COMPOUND_FINAL_FIRST[state.final] || null;
+      return true;
+    }
+    if (state.medial) {
+      state.medial = COMPOUND_VOWEL_FIRST[state.medial] || null;
+      return true;
+    }
+    if (state.initial) {
+      state.initial = null;
+      return true;
+    }
+    return false;
+  }
+
+  function beginComposition() {
+    snapshot();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    prefix = editor.value.slice(0, start);
+    suffix = editor.value.slice(end);
+    resetState();
+  }
+
+  function renderComposition() {
+    const comp = compose();
+    editor.value = prefix + comp + suffix;
+    const caret = prefix.length + comp.length;
+    editor.setSelectionRange(caret, caret);
+    updateBreakdown();
+    updateCharCount();
+  }
+
+  function finishComposition() {
+    editor.value = prefix + suffix;
+    editor.setSelectionRange(prefix.length, prefix.length);
+    prefix = "";
+    suffix = "";
+    updateBreakdown();
+    updateCharCount();
+  }
+
+  function commitComposition() {
+    if (!hasComposition()) {
+      prefix = "";
+      suffix = "";
+      return;
+    }
+    prefix += compose();
+    resetState();
+    finishComposition();
+  }
+
+  function cancelComposition() {
+    if (!hasComposition()) {
+      prefix = "";
+      suffix = "";
+      return;
+    }
+    resetState();
+    finishComposition();
+  }
+
+  // ---- UI --------------------------------------------------------------------
+
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove("show"), 1600);
+  }
+
+  function updateCharCount() {
+    charCount.textContent = `${editor.value.length.toLocaleString("ko-KR")} 자`;
+  }
+
+  function updateBreakdown() {
+    const comp = compose();
+    const set = (el, value) => {
+      el.textContent = value || "—";
+      el.classList.toggle("empty", !value);
+    };
+    set(jamoInitial, state.initial);
+    set(jamoMedial, state.medial);
+    set(jamoFinal, state.final);
+    composedChar.textContent = comp || "—";
+    composedChar.classList.toggle("empty", !comp);
+  }
+
+  function updateImeUI() {
+    imePill.classList.toggle("on", active);
+    imePill.classList.toggle("off", !active);
+    imePillText.textContent = active ? "한글 입력 ON" : "영문 입력 OFF";
+  }
+
+  function setActive(on) {
+    if (hasComposition()) commitComposition();
+    active = !!on;
+    updateImeUI();
+    editor.focus();
+    showToast(active ? "한글 입력 ON" : "영문 입력 OFF");
+  }
+
+  function toggle() {
+    setActive(!active);
+  }
+
+  // ---- keyboard --------------------------------------------------------------
+
+  editor.addEventListener("keydown", (e) => {
+    if (e.metaKey) return;
+
+    // Toggle: Ctrl+Space, Shift+Space, Alt+`
+    if ((e.ctrlKey && !e.altKey && e.code === "Space") ||
+        (!e.ctrlKey && !e.altKey && !e.metaKey && e.shiftKey && e.code === "Space") ||
+        (e.altKey && !e.ctrlKey && e.code === "Backquote")) {
+      e.preventDefault();
+      toggle();
+      return;
+    }
+
+    if (e.code === "Lang1") { e.preventDefault(); setActive(false); return; }
+    if (e.code === "Lang2" || e.code === "KanaMode") { e.preventDefault(); setActive(true); return; }
+
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "y" || e.key === "Y")) {
+      e.preventDefault();
+      redo();
+      return;
+    }
+
+    if (!active) return;
+
+    // Commit before any native editing or shortcut, but let the key itself through.
+    if (hasComposition() && (e.ctrlKey || e.altKey || e.metaKey)) {
+      commitComposition();
+    }
+
+    const jamo = jamoFromKey(e);
+    if (jamo && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      if (!hasComposition()) beginComposition();
+      if (INITIAL_SET.has(jamo)) pushConsonant(jamo);
+      else pushVowel(jamo);
+      renderComposition();
+      return;
+    }
+
+    if (e.key === "Backspace" && hasComposition()) {
+      e.preventDefault();
+      snapshot();
+      backspaceComposing();
+      if (hasComposition()) renderComposition();
+      else finishComposition();
+      return;
+    }
+
+    if (e.key === "Escape" && hasComposition()) {
+      e.preventDefault();
+      snapshot();
+      cancelComposition();
+      return;
+    }
+
+    // Navigation / Enter / Space / punctuation: finish the current syllable,
+    // then let the browser perform the native action at the caret.
+    if (hasComposition() &&
+        (e.key === "ArrowLeft" || e.key === "ArrowRight" ||
+         e.key === "ArrowUp" || e.key === "ArrowDown" ||
+         e.key === "Home" || e.key === "End" ||
+         e.key === "PageUp" || e.key === "PageDown" ||
+         e.key === "Tab" || e.key === "Enter" || e.key === " " ||
+         e.key === "Delete" || e.key.length === 1)) {
+      commitComposition();
+    }
+  });
+
+  editor.addEventListener("beforeinput", () => {
+    if (hasComposition()) commitComposition();
+    snapshot();
+  });
+
+  editor.addEventListener("mousedown", () => {
+    if (hasComposition()) commitComposition();
+  });
+
+  editor.addEventListener("blur", () => {
+    if (hasComposition()) commitComposition();
+  });
+
+  editor.addEventListener("input", updateCharCount);
+
+  // ---- UI controls -----------------------------------------------------------
+
+  $("toggle-btn").addEventListener("click", toggle);
+  $("toggle-btn-2").addEventListener("click", toggle);
+
+  $("clear-btn").addEventListener("click", () => {
+    snapshot();
+    cancelComposition();
+    editor.value = "";
+    updateCharCount();
+    updateBreakdown();
+    editor.focus();
+    showToast("지웠습니다");
+  });
+
+  $("copy-btn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(editor.value);
+      showToast("복사했습니다");
+    } catch (_) {
+      editor.select();
+      document.execCommand("copy");
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+      showToast("복사했습니다");
+    }
+  });
+
+  $("sample-btn").addEventListener("click", () => {
+    snapshot();
+    const sample = "안녕하세요. 한국어 입력기입니다.";
+    editor.value = sample;
+    updateCharCount();
+    updateBreakdown();
+    editor.focus();
+    editor.setSelectionRange(sample.length, sample.length);
+    showToast("예문을 넣었습니다");
+  });
+
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem("jsim-theme"); } catch (_) {}
+  const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    themeBtn.textContent = theme === "dark" ? "☀" : "☾";
+    try { localStorage.setItem("jsim-theme", theme); } catch (_) {}
+  }
+  setTheme(initialTheme);
+  themeBtn.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+
+  updateCharCount();
+  updateBreakdown();
+  editor.focus();
+})();
 </script>
-
-<div id="debug"></div>
-
-<div id="explanation">
-<strong>Toggle : Shift + Space</strong><br />
-<a href="javascript:d=document;w=window;t='';void(w.open('http://colspan.net/hangulime/','_blank','scrollbars=yes,width=450,height=480,status=yes,resizable=yes'));">Hangul IME Bookmarklet(Pop Up)</a><br>
-<a href="javascript:(function(){var s=document.createElement('script');s.charset='utf-8';s.src='http://colspan.net/hangulime/bookmarklet/loader.js';document.body.appendChild(s);})();">Hangul IME Bookmarklet(Embed)</a><br />
-(<a href="howtouse.html">How to use bookmarklet</a>)
-</div>
-
-
-<div id="credit">
-<a href="http://colspan.net/hangulime_stable/">Old Stable Version</a> / 
-<a href="http://colspan.net/blog/release-notes/">Release Notes</a><br />
-<a href="http://colspan.net/japaneseime/">Japanese IME</a>
-<br />
-
-by <a href="http://colspan.net/">Colspan</a> / License: <a href="http://www.opensource.org/licenses/mit-license.php">MIT License</a><br />
-johab.js by <a href="http://ha1.seikyou.ne.jp/home/akairingosaita/typing/">chiyu</a>, caret.js by <a href="http://d.hatena.ne.jp/project_the_tower2/">sion</a><br />
-</div>
-
-
-<img src="style/keyboard_kr.png" style="position:absolute;top:10px;left:210px;">
-
 </body>
 </html>
-

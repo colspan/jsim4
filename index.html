@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSIM — ブラウザで動く日本語・韓国語 IME</title>
+<meta name="description" content="HTML と WebAssembly で動く日本語・韓国語 IME。Mozc WASM による本格的なかな漢字変換と、モダンなキーバインディングをブラウザだけで体験できます。">
+<meta name="keywords" content="日本語入力,韓国語入力,IME,WebAssembly,WASM,Mozc,ハングル,かな漢字変換">
+<meta name="theme-color" content="#0b1020">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236c8cff'/%3E%3Ctext x='32' y='42' font-size='30' text-anchor='middle' fill='white' font-family='system-ui'%3E%E6%97%A5%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #080b14;
+    --bg-soft: #0d1222;
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-strong: rgba(255, 255, 255, 0.08);
+    --border: rgba(255, 255, 255, 0.11);
+    --text: #eef2ff;
+    --muted: #9aa6c4;
+    --accent: #7c9cff;
+    --accent-2: #6ee7c7;
+    --accent-3: #ffb86b;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    --radius: 20px;
+    --font: "Inter", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f6ff;
+    --bg-soft: #e9edff;
+    --surface: rgba(255, 255, 255, 0.72);
+    --surface-strong: rgba(255, 255, 255, 0.94);
+    --border: rgba(20, 30, 70, 0.12);
+    --text: #131a30;
+    --muted: #5d6884;
+    --accent: #3f5cff;
+    --accent-2: #0f9f83;
+    --accent-3: #c46a00;
+    --shadow: 0 24px 80px rgba(40, 60, 140, 0.16);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background:
+      radial-gradient(1200px 800px at 15% -10%, rgba(124, 156, 255, 0.22), transparent 60%),
+      radial-gradient(900px 700px at 90% 0%, rgba(110, 231, 199, 0.14), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; }
+  .wrap { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
+  .nav {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(18px);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex; align-items: center; gap: 18px;
+    min-height: 68px;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-mark {
+    width: 38px; height: 38px; border-radius: 11px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #07101f; font-size: 19px; font-weight: 900;
+    box-shadow: 0 8px 24px rgba(124, 156, 255, 0.35);
+  }
+  .brand small { display: block; font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.08em; }
+  .nav-links { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .nav-links a, .icon-btn, .lang-switch button {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: 0.18s ease;
+  }
+  .nav-links a:hover, .icon-btn:hover, .lang-switch button:hover { color: var(--text); background: var(--surface); }
+  .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; font-size: 17px; }
+  .lang-switch { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); }
+  .lang-switch button { padding: 5px 10px; font-size: 12px; font-weight: 700; border-radius: 8px; }
+  .lang-switch button.active { color: var(--text); background: var(--surface-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
+  .hero { padding: 74px 0 44px; }
+  .hero-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 48px; align-items: center; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 999px; padding: 6px 13px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent-2);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 12px var(--accent-2); }
+  h1 {
+    margin: 22px 0 18px;
+    font-size: clamp(40px, 5.4vw, 68px);
+    line-height: 1.06;
+    letter-spacing: -0.045em;
+    font-weight: 850;
+  }
+  .grad { background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 58%, var(--accent-3) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: clamp(16px, 1.6vw, 19px); color: var(--muted); max-width: 60ch; margin: 0 0 28px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    border-radius: 13px; padding: 13px 20px;
+    font-weight: 750; font-size: 15px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    cursor: pointer;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow); background: var(--surface-strong); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #5b7cff); border-color: transparent; color: #fff; box-shadow: 0 14px 36px rgba(91, 124, 255, 0.35); }
+  .btn.primary:hover { box-shadow: 0 18px 44px rgba(91, 124, 255, 0.45); }
+  .btn.ghost { color: var(--muted); }
+  .hero-note { margin-top: 18px; font-size: 12.5px; color: var(--muted); }
+  .hero-note code { font-family: var(--mono); color: var(--accent-3); }
+
+  .demo {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, var(--surface-strong), var(--surface));
+    box-shadow: var(--shadow);
+    padding: 18px;
+    overflow: hidden;
+  }
+  .demo::before {
+    content: ""; position: absolute; inset: -40% 30% auto auto;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(110, 231, 199, 0.28), transparent 70%);
+    filter: blur(8px);
+  }
+  .demo-bar { display: flex; gap: 6px; margin-bottom: 14px; }
+  .demo-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--border); display: block; }
+  .demo-screen {
+    border: 1px solid var(--border); border-radius: 13px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    padding: 15px 16px; min-height: 132px;
+  }
+  .demo-label { font-size: 11px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+  .demo-text { font-size: 22px; font-weight: 700; letter-spacing: 0.02em; margin-top: 8px; min-height: 34px; }
+  .caret { display: inline-block; width: 2px; height: 1.15em; background: var(--accent-2); vertical-align: -0.18em; margin-left: 2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .demo-cands { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; }
+  .demo-cands span {
+    font-size: 12px; padding: 5px 9px; border-radius: 8px;
+    border: 1px solid var(--border); color: var(--muted); background: var(--surface);
+  }
+  .demo-cands span.on { color: var(--bg); background: var(--accent-2); border-color: transparent; font-weight: 800; }
+  .demo-status { display: flex; justify-content: space-between; align-items: center; margin-top: 13px; font-size: 11px; color: var(--muted); }
+  .pill { border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; }
+  .pill.on { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 46px 0 0; }
+  .stat { border: 1px solid var(--border); background: var(--surface); border-radius: 14px; padding: 15px 16px; }
+  .stat b { display: block; font-size: 20px; letter-spacing: -0.02em; }
+  .stat span { font-size: 12px; color: var(--muted); }
+
+  section { padding: 62px 0; }
+  .section-head { max-width: 720px; margin-bottom: 30px; }
+  .kicker { font-size: 12px; letter-spacing: 0.16em; font-weight: 800; color: var(--accent); text-transform: uppercase; }
+  h2 { font-size: clamp(27px, 3vw, 38px); line-height: 1.18; letter-spacing: -0.03em; margin: 8px 0 10px; }
+  .section-head p { color: var(--muted); margin: 0; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card {
+    position: relative; overflow: hidden;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: linear-gradient(150deg, var(--surface-strong), var(--surface));
+    padding: 26px;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--accent) 38%, var(--border)); box-shadow: var(--shadow); }
+  .card-top { display: flex; align-items: center; gap: 13px; margin-bottom: 12px; }
+  .card-icon {
+    width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center;
+    font-size: 21px; font-weight: 900; color: #07101f;
+  }
+  .card-icon.jp { background: linear-gradient(135deg, #ffb86b, #ff7a90); }
+  .card-icon.kr { background: linear-gradient(135deg, #7c9cff, #6ee7c7); }
+  .card h3 { margin: 0; font-size: 21px; letter-spacing: -0.02em; }
+  .card p { color: var(--muted); margin: 0 0 18px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  .tag { font-size: 11px; font-weight: 700; border: 1px solid var(--border); border-radius: 999px; padding: 4px 9px; color: var(--muted); }
+  .card-link { display: inline-flex; align-items: center; gap: 7px; font-weight: 800; color: var(--accent); }
+  .card-link:hover { gap: 11px; }
+
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .feature { border: 1px solid var(--border); background: var(--surface); border-radius: 16px; padding: 20px; }
+  .feature .fi { font-size: 20px; margin-bottom: 9px; }
+  .feature h3 { margin: 0 0 5px; font-size: 15px; }
+  .feature p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .keys-wrap { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 30px; align-items: start; }
+  .key-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .key-table th, .key-table td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--border); }
+  .key-table th { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+  .key-table tr:last-child td { border-bottom: none; }
+  kbd {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    border: 1px solid var(--border); border-bottom-width: 2px;
+    background: var(--surface-strong); border-radius: 7px;
+    padding: 2px 7px; white-space: nowrap;
+  }
+  .callout { border: 1px solid color-mix(in srgb, var(--accent-2) 40%, var(--border)); background: color-mix(in srgb, var(--accent-2) 8%, var(--surface)); border-radius: 16px; padding: 18px 20px; font-size: 13.5px; color: var(--muted); }
+  .callout b { color: var(--text); }
+
+  .footer { border-top: 1px solid var(--border); padding: 34px 0 46px; margin-top: 24px; }
+  .footer-grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; justify-content: space-between; }
+  .footer p { margin: 0; font-size: 13px; color: var(--muted); max-width: 62ch; }
+  .footer a { color: var(--accent); }
+  .footer-links { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 980px) {
+    .hero-grid, .keys-wrap { grid-template-columns: 1fr; }
+    .demo { order: -1; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .features { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 680px) {
+    .wrap { width: min(100% - 28px, 1160px); }
+    .nav-links a:not(.hide-sm) { display: none; }
+    .hero { padding-top: 46px; }
+    .cards, .features { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .footer-grid { flex-direction: column; }
+    .key-table th:nth-child(2), .key-table td:nth-child(2) { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="JSIM home">
+      <span class="brand-mark">日</span>
+      <span>JSIM<small data-i18n="brandTag">BROWSER IME</small></span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#imes" data-i18n="navImes">IME</a>
+      <a href="#features" data-i18n="navFeatures">特徴</a>
+      <a href="#keys" data-i18n="navKeys">キー操作</a>
+      <a class="hide-sm" href="https://github.com/colspan/jsim4" target="_blank" rel="noopener">GitHub</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" data-lang="ja">JA</button>
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="ko">KO</button>
+      </div>
+      <button class="icon-btn" id="theme-btn" type="button" aria-label="Toggle theme" title="Theme">◐</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow"><span class="dot"></span><span data-i18n="heroBadge">HTML + WebAssembly / インストール不要</span></span>
+        <h1><span data-i18n="heroTitle1">ブラウザだけで、</span><br><span class="grad" data-i18n="heroTitle2">本格的な日本語入力。</span></h1>
+        <p class="lead" data-i18n="heroLead">Mozc を WebAssembly にした本格的なかな漢字変換エンジンと、モダンなキーバインディング。日本語と韓国語の IME を、HTML 一枚から始められます。</p>
+        <div class="cta">
+          <a class="btn primary" href="japanese.html"><span data-i18n="ctaJa">日本語 IME を開く</span> <span aria-hidden="true">→</span></a>
+          <a class="btn" href="korean.html"><span data-i18n="ctaKo">한국어 IME 열기</span> <span aria-hidden="true">→</span></a>
+          <a class="btn ghost" href="https://github.com/colspan/jsim4" target="_blank" rel="noopener"><span data-i18n="ctaGit">GitHub</span></a>
+        </div>
+        <p class="hero-note" data-i18n="heroNote">変換はすべて端末内で完結。<code>mozc.data.gz</code> は初回のみダウンロードされます。</p>
+      </div>
+
+      <div class="demo" aria-hidden="true">
+        <div class="demo-bar"><i></i><i></i><i></i></div>
+        <div class="demo-screen">
+          <div class="demo-label">Japanese IME</div>
+          <div class="demo-text"><span id="demo-text">きょうはいいてんきですね</span><span class="caret"></span></div>
+          <div class="demo-cands" id="demo-cands">
+            <span class="on">今日はいい天気ですね</span>
+            <span>今日は良い天気ですね</span>
+            <span>京はいい天気ですね</span>
+          </div>
+        </div>
+        <div class="demo-status">
+          <span class="pill on" id="demo-pill">IME ON</span>
+          <span>Mozc WASM · local</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="stats reveal">
+        <div class="stat"><b>WASM</b><span data-i18n="statWasm">Mozc 変換エンジン</span></div>
+        <div class="stat"><b>0</b><span data-i18n="statInstall">インストール手順</span></div>
+        <div class="stat"><b>2</b><span data-i18n="statLang">日本語 / 韓国語</span></div>
+        <div class="stat"><b>MIT</b><span data-i18n="statLicense">オープンソース</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="imes">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Choose your IME</span>
+        <h2 data-i18n="imesTitle">2 つの入力体験</h2>
+        <p data-i18n="imesLead">どちらもページを開くだけで動きます。変換エンジンは端末内で動作し、入力内容がサーバーへ送られることはありません。</p>
+      </div>
+      <div class="cards">
+        <a class="card reveal" href="japanese.html">
+          <div class="card-top">
+            <span class="card-icon jp">あ</span>
+            <h3 data-i18n="jpTitle">日本語 IME</h3>
+          </div>
+          <p data-i18n="jpDesc">ローマ字からかなへ、そして Mozc WASM が文脈に沿って漢字へ。文節移動・候補選択・学習まで、実用的な日本語入力。</p>
+          <div class="tags"><span class="tag">Mozc WASM</span><span class="tag">かな漢字変換</span><span class="tag">文節選択</span></div>
+          <span class="card-link"><span data-i18n="openJa">日本語 IME を開く</span> <span aria-hidden="true">→</span></span>
+        </a>
+        <a class="card reveal" href="korean.html">
+          <div class="card-top">
+            <span class="card-icon kr">한</span>
+            <h3 data-i18n="koTitle">韓国語 IME</h3>
+          </div>
+          <p data-i18n="koDesc">2 ボル式キーボードで、初声・中声・終声をその場で合成。複合母音や二重パッチムにも対応した軽量ハングル入力。</p>
+          <div class="tags"><span class="tag">두벌식</span><span class="tag">Hangul automaton</span><span class="tag">軽量</span></div>
+          <span class="card-link"><span data-i18n="openKo">한국어 IME 열기</span> <span aria-hidden="true">→</span></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Modern by design</span>
+        <h2 data-i18n="featuresTitle">現代の Web に合わせた設計</h2>
+        <p data-i18n="featuresLead">古いブラウザ分岐を捨て、ES2020 と WebAssembly の上に作り直しました。</p>
+      </div>
+      <div class="features">
+        <div class="feature reveal"><div class="fi">⚡</div><h3 data-i18n="f1t">WASM 変換エンジン</h3><p data-i18n="f1d">Mozc を Emscripten でビルドしたエンジンを Worker で実行。UI をブロックしません。</p></div>
+        <div class="feature reveal"><div class="fi">🔒</div><h3 data-i18n="f2t">完全ローカル</h3><p data-i18n="f2d">入力・変換・学習はブラウザ内で完結。サーバーへテキストを送りません。</p></div>
+        <div class="feature reveal"><div class="fi">⌨️</div><h3 data-i18n="f3t">モダンなキーバインド</h3><p data-i18n="f3d">Ctrl+Space で切替、Space で変換、Shift+Space で前候補。標準 IME の作法に合わせました。</p></div>
+        <div class="feature reveal"><div class="fi">📄</div><h3 data-i18n="f4t">ビルド不要</h3><p data-i18n="f4d">各ページは HTML 一枚。CSS とアプリ JS はインラインで、そのまま配信できます。</p></div>
+        <div class="feature reveal"><div class="fi">📱</div><h3 data-i18n="f5t">レスポンシブ</h3><p data-i18n="f5d">デスクトップでもタブレットでも。候補ウィンドウは画面内に収まります。</p></div>
+        <div class="feature reveal"><div class="fi">🧩</div><h3 data-i18n="f6t">拡張しやすい</h3><p data-i18n="f6d">hechima のセッション層と Mozc WASM を分離。UI だけを差し替えられます。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="keys">
+    <div class="wrap keys-wrap">
+      <div class="section-head reveal" style="margin-bottom:0">
+        <span class="kicker">Keyboard</span>
+        <h2 data-i18n="keysTitle">キー操作</h2>
+        <p data-i18n="keysLead">日本語 IME の標準的な操作です。ブラウザのショートカットと衝突しないよう、OS 側の IME はオフにして使ってください。</p>
+        <div class="callout" style="margin-top:18px">
+          <b data-i18n="calloutTitle">ヒント:</b>
+          <span data-i18n="calloutBody">変換中の候補はクリックでも選べます。数字キー 1–9 は候補の直接選択です。</span>
+        </div>
+      </div>
+      <div class="reveal">
+        <table class="key-table">
+          <thead><tr><th data-i18n="thAction">操作</th><th data-i18n="thKey">キー</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="kToggle">IME の ON / OFF</td><td><kbd>Ctrl</kbd> + <kbd>Space</kbd> / <kbd>Alt</kbd> + <kbd>`</kbd></td></tr>
+            <tr><td data-i18n="kConvert">変換を開始 / 次候補</td><td><kbd>Space</kbd></td></tr>
+            <tr><td data-i18n="kPrev">前候補 / 追加候補</td><td><kbd>Shift</kbd> + <kbd>Space</kbd></td></tr>
+            <tr><td data-i18n="kCand">候補の移動</td><td><kbd>↑</kbd> <kbd>↓</kbd></td></tr>
+            <tr><td data-i18n="kSeg">文節の移動</td><td><kbd>←</kbd> <kbd>→</kbd></td></tr>
+            <tr><td data-i18n="kResize">文節の伸縮</td><td><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd></td></tr>
+            <tr><td data-i18n="kCommit">確定</td><td><kbd>Enter</kbd></td></tr>
+            <tr><td data-i18n="kCancel">取り消し</td><td><kbd>Esc</kbd></td></tr>
+            <tr><td data-i18n="kMore">候補をさらに表示</td><td><kbd>Tab</kbd></td></tr>
+            <tr><td data-i18n="kUndo">確定アンドゥ</td><td><kbd>Ctrl</kbd> + <kbd>Backspace</kbd></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div>
+      <div class="brand" style="margin-bottom:12px">
+        <span class="brand-mark">日</span>
+        <span>JSIM<small data-i18n="brandTag">BROWSER IME</small></span>
+      </div>
+      <p data-i18n="footerText">オリジナルの JSIM（Colspan, 2009）を、WebAssembly とモダンな Web API で作り直したプロジェクトです。変換エンジンは Mozc、セッション層は hechima を利用しています。</p>
+    </div>
+    <div class="footer-links">
+      <a href="japanese.html" data-i18n="footerJa">日本語 IME</a>
+      <a href="korean.html" data-i18n="footerKo">韓国語 IME</a>
+      <a href="https://github.com/colspan/jsim4" target="_blank" rel="noopener">GitHub</a>
+      <a href="THIRD_PARTY_NOTICES.md" data-i18n="footerLicense">ライセンス</a>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px">
+    <p style="font-size:12px">Powered by Mozc (BSD-3-Clause) · hechima (MIT) · Original JSIM by Colspan (MIT)</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const translations = {
+    ja: {
+      brandTag: "BROWSER IME",
+      navImes: "IME",
+      navFeatures: "特徴",
+      navKeys: "キー操作",
+      heroBadge: "HTML + WebAssembly / インストール不要",
+      heroTitle1: "ブラウザだけで、",
+      heroTitle2: "本格的な日本語入力。",
+      heroLead: "Mozc を WebAssembly にした本格的なかな漢字変換エンジンと、モダンなキーバインディング。日本語と韓国語の IME を、HTML 一枚から始められます。",
+      ctaJa: "日本語 IME を開く",
+      ctaKo: "한국어 IME 열기",
+      ctaGit: "GitHub",
+      heroNote: "変換はすべて端末内で完結。<code>mozc.data.gz</code> は初回のみダウンロードされます。",
+      statWasm: "Mozc 変換エンジン",
+      statInstall: "インストール手順",
+      statLang: "日本語 / 韓国語",
+      statLicense: "オープンソース",
+      imesTitle: "2 つの入力体験",
+      imesLead: "どちらもページを開くだけで動きます。変換エンジンは端末内で動作し、入力内容がサーバーへ送られることはありません。",
+      jpTitle: "日本語 IME",
+      jpDesc: "ローマ字からかなへ、そして Mozc WASM が文脈に沿って漢字へ。文節移動・候補選択・学習まで、実用的な日本語入力。",
+      openJa: "日本語 IME を開く",
+      koTitle: "韓国語 IME",
+      koDesc: "2 ボル式キーボードで、初声・中声・終声をその場で合成。複合母音や二重パッチムにも対応した軽量ハングル入力。",
+      openKo: "한국어 IME 열기",
+      featuresTitle: "現代の Web に合わせた設計",
+      featuresLead: "古いブラウザ分岐を捨て、ES2020 と WebAssembly の上に作り直しました。",
+      f1t: "WASM 変換エンジン",
+      f1d: "Mozc を Emscripten でビルドしたエンジンを Worker で実行。UI をブロックしません。",
+      f2t: "完全ローカル",
+      f2d: "入力・変換・学習はブラウザ内で完結。サーバーへテキストを送りません。",
+      f3t: "モダンなキーバインド",
+      f3d: "Ctrl+Space で切替、Space で変換、Shift+Space で前候補。標準 IME の作法に合わせました。",
+      f4t: "ビルド不要",
+      f4d: "各ページは HTML 一枚。CSS とアプリ JS はインラインで、そのまま配信できます。",
+      f5t: "レスポンシブ",
+      f5d: "デスクトップでもタブレットでも。候補ウィンドウは画面内に収まります。",
+      f6t: "拡張しやすい",
+      f6d: "hechima のセッション層と Mozc WASM を分離。UI だけを差し替えられます。",
+      keysTitle: "キー操作",
+      keysLead: "日本語 IME の標準的な操作です。ブラウザのショートカットと衝突しないよう、OS 側の IME はオフにして使ってください。",
+      calloutTitle: "ヒント:",
+      calloutBody: "変換中の候補はクリックでも選べます。数字キー 1–9 は候補の直接選択です。",
+      thAction: "操作",
+      thKey: "キー",
+      kToggle: "IME の ON / OFF",
+      kConvert: "変換を開始 / 次候補",
+      kPrev: "前候補 / 追加候補",
+      kCand: "候補の移動",
+      kSeg: "文節の移動",
+      kResize: "文節の伸縮",
+      kCommit: "確定",
+      kCancel: "取り消し",
+      kMore: "候補リストをスクロール",
+      kUndo: "確定アンドゥ",
+      footerText: "オリジナルの JSIM（Colspan, 2009）を、WebAssembly とモダンな Web API で作り直したプロジェクトです。変換エンジンは Mozc、セッション層は hechima を利用しています。",
+      footerJa: "日本語 IME",
+      footerKo: "韓国語 IME",
+      footerLicense: "ライセンス"
+    },
+    en: {
+      brandTag: "BROWSER IME",
+      navImes: "IME",
+      navFeatures: "Features",
+      navKeys: "Keys",
+      heroBadge: "HTML + WebAssembly / no install",
+      heroTitle1: "Real Japanese input,",
+      heroTitle2: "right in your browser.",
+      heroLead: "A genuine kana-kanji conversion engine built on Mozc and compiled to WebAssembly, with modern key bindings. Japanese and Korean IMEs, starting from a single HTML file.",
+      ctaJa: "Open Japanese IME",
+      ctaKo: "Open Korean IME",
+      ctaGit: "GitHub",
+      heroNote: "Everything runs on your device. <code>mozc.data.gz</code> is downloaded only once.",
+      statWasm: "Mozc conversion engine",
+      statInstall: "install steps",
+      statLang: "Japanese / Korean",
+      statLicense: "open source",
+      imesTitle: "Two input experiences",
+      imesLead: "Both work as soon as you open the page. The conversion engine runs locally; your text never leaves the browser.",
+      jpTitle: "Japanese IME",
+      jpDesc: "Romaji to kana, then Mozc WASM converts to kanji in context. Segment navigation, candidate selection, and learning — a practical Japanese input method.",
+      openJa: "Open Japanese IME",
+      koTitle: "Korean IME",
+      koDesc: "A dubeolsik keyboard that composes initial, medial, and final jamo on the fly, including compound vowels and double patchim.",
+      openKo: "Open Korean IME",
+      featuresTitle: "Built for the modern web",
+      featuresLead: "Old browser branches are gone. Rebuilt on ES2020 and WebAssembly.",
+      f1t: "WASM conversion engine",
+      f1d: "Mozc compiled with Emscripten runs in a Worker, so the UI stays responsive.",
+      f2t: "Fully local",
+      f2d: "Input, conversion, and learning stay inside the browser. No text is sent to a server.",
+      f3t: "Modern key bindings",
+      f3d: "Ctrl+Space to toggle, Space to convert, Shift+Space for the previous candidate — following standard IME conventions.",
+      f4t: "No build step",
+      f4d: "Each page is a single HTML file. CSS and app JS are inline, ready to serve as-is.",
+      f5t: "Responsive",
+      f5d: "Works on desktop and tablet. The candidate window stays within the viewport.",
+      f6t: "Hackable",
+      f6d: "The hechima session layer and Mozc WASM are separated, so you can swap just the UI.",
+      keysTitle: "Key bindings",
+      keysLead: "Standard Japanese IME operations. Turn off your OS IME to avoid conflicting with browser shortcuts.",
+      calloutTitle: "Tip:",
+      calloutBody: "You can also click candidates. Number keys 1–9 select a candidate directly.",
+      thAction: "Action",
+      thKey: "Key",
+      kToggle: "Toggle IME on / off",
+      kConvert: "Start conversion / next candidate",
+      kPrev: "Previous / additional candidate",
+      kCand: "Move between candidates",
+      kSeg: "Move between segments",
+      kResize: "Resize a segment",
+      kCommit: "Commit",
+      kCancel: "Cancel",
+      kMore: "Scroll the candidate list",
+      kUndo: "Undo commit",
+      footerText: "A rebuild of the original JSIM (Colspan, 2009) using WebAssembly and modern Web APIs. Conversion is powered by Mozc; the session layer is hechima.",
+      footerJa: "Japanese IME",
+      footerKo: "Korean IME",
+      footerLicense: "Licenses"
+    },
+    ko: {
+      brandTag: "BROWSER IME",
+      navImes: "IME",
+      navFeatures: "특징",
+      navKeys: "키 조작",
+      heroBadge: "HTML + WebAssembly / 설치 불필요",
+      heroTitle1: "브라우저만으로,",
+      heroTitle2: "본격적인 일본어 입력.",
+      heroLead: "Mozc를 WebAssembly로 빌드한 본격적인 가나-한자 변환 엔진과 모던 키 바인딩. 일본어와 한국어 IME를 HTML 한 장에서 시작할 수 있습니다.",
+      ctaJa: "일본어 IME 열기",
+      ctaKo: "한국어 IME 열기",
+      ctaGit: "GitHub",
+      heroNote: "모든 변환은 기기 안에서 완결됩니다. <code>mozc.data.gz</code>는 처음 한 번만 다운로드됩니다.",
+      statWasm: "Mozc 변환 엔진",
+      statInstall: "설치 단계",
+      statLang: "일본어 / 한국어",
+      statLicense: "오픈 소스",
+      imesTitle: "두 가지 입력 경험",
+      imesLead: "둘 다 페이지를 열면 바로 동작합니다. 변환 엔진은 기기 안에서 실행되며 입력 내용이 서버로 전송되지 않습니다.",
+      jpTitle: "일본어 IME",
+      jpDesc: "로마자에서 가나로, 그리고 Mozc WASM이 문맥에 맞게 한자로 변환합니다. 문절 이동, 후보 선택, 학습까지 실용적인 일본어 입력.",
+      openJa: "일본어 IME 열기",
+      koTitle: "한국어 IME",
+      koDesc: "두벌식 키보드로 초성·중성·종성을 실시간 조합. 복합 모음과 겹받침도 지원하는 가벼운 한글 입력기.",
+      openKo: "한국어 IME 열기",
+      featuresTitle: "현대 웹에 맞춘 설계",
+      featuresLead: "구형 브라우저 분기를 버리고 ES2020과 WebAssembly 위에 다시 만들었습니다.",
+      f1t: "WASM 변환 엔진",
+      f1d: "Emscripten으로 빌드한 Mozc를 Worker에서 실행해 UI를 막지 않습니다.",
+      f2t: "완전 로컬",
+      f2d: "입력·변환·학습이 브라우저 안에서 완결됩니다. 서버로 텍스트를 보내지 않습니다.",
+      f3t: "모던 키 바인딩",
+      f3d: "Ctrl+Space로 전환, Space로 변환, Shift+Space로 이전 후보. 표준 IME 관습에 맞췄습니다.",
+      f4t: "빌드 불필요",
+      f4d: "각 페이지는 HTML 한 장. CSS와 앱 JS가 인라인이라 그대로 배포할 수 있습니다.",
+      f5t: "반응형",
+      f5d: "데스크톱과 태블릿 모두. 후보 창은 화면 안에 들어옵니다.",
+      f6t: "확장하기 쉬움",
+      f6d: "hechima 세션 계층과 Mozc WASM을 분리해 UI만 교체할 수 있습니다.",
+      keysTitle: "키 조작",
+      keysLead: "일본어 IME의 표준 조작입니다. 브라우저 단축키와 충돌하지 않도록 OS의 IME를 꺼 두세요.",
+      calloutTitle: "팁:",
+      calloutBody: "변환 중 후보는 클릭으로도 선택할 수 있습니다. 숫자 키 1–9는 후보 직접 선택입니다.",
+      thAction: "동작",
+      thKey: "키",
+      kToggle: "IME ON / OFF",
+      kConvert: "변환 시작 / 다음 후보",
+      kPrev: "이전 후보 / 추가 후보",
+      kCand: "후보 이동",
+      kSeg: "문절 이동",
+      kResize: "문절 늘이기/줄이기",
+      kCommit: "확정",
+      kCancel: "취소",
+      kMore: "후보 목록 스크롤",
+      kUndo: "확정 실행 취소",
+      footerText: "원래의 JSIM(Colspan, 2009)을 WebAssembly와 모던 웹 API로 다시 만든 프로젝트입니다. 변환 엔진은 Mozc, 세션 계층은 hechima를 사용합니다.",
+      footerJa: "일본어 IME",
+      footerKo: "한국어 IME",
+      footerLicense: "라이선스"
+    }
+  };
+
+  const langButtons = document.querySelectorAll("[data-lang]");
+  const themeBtn = document.getElementById("theme-btn");
+  const demoText = document.getElementById("demo-text");
+  const demoCands = document.getElementById("demo-cands");
+  const demoPill = document.getElementById("demo-pill");
+
+  function setLang(lang) {
+    const t = translations[lang] || translations.ja;
+    document.documentElement.lang = lang;
+    document.title = lang === "ja"
+      ? "JSIM — ブラウザで動く日本語・韓国語 IME"
+      : lang === "ko"
+        ? "JSIM — 브라우저에서 동작하는 일본어·한국어 IME"
+        : "JSIM — Japanese & Korean IME in your browser";
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (t[key] !== undefined) el.innerHTML = t[key];
+    });
+    langButtons.forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
+    try { localStorage.setItem("jsim-lang", lang); } catch (_) {}
+  }
+
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    themeBtn.textContent = theme === "dark" ? "☀" : "☾";
+    try { localStorage.setItem("jsim-theme", theme); } catch (_) {}
+  }
+
+  let savedLang = null;
+  let savedTheme = null;
+  try {
+    savedLang = localStorage.getItem("jsim-lang");
+    savedTheme = localStorage.getItem("jsim-theme");
+  } catch (_) {}
+  const navLang = (navigator.language || "ja").toLowerCase();
+  const initialLang = (savedLang === "ja" || savedLang === "en" || savedLang === "ko")
+    ? savedLang
+    : (navLang.startsWith("ja") ? "ja" : navLang.startsWith("ko") ? "ko" : "en");
+  const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  setLang(initialLang);
+  setTheme(initialTheme);
+
+  langButtons.forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
+  themeBtn.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+
+  const demos = [
+    {
+      typed: "きょうはいいてんきですね",
+      cands: ["今日はいい天気ですね", "今日は良い天気ですね", "京はいい天気ですね"]
+    },
+    {
+      typed: "にほんごにゅうりょく",
+      cands: ["日本語入力", "日本語ニュウリョク", "二本語入力"]
+    },
+    {
+      typed: "とうきょうにすむ",
+      cands: ["東京に住む", "東京に済む", "東亰に住む"]
+    }
+  ];
+  let demoIndex = 0;
+  let charIndex = 0;
+  let candIndex = 0;
+  let phase = "typing";
+
+  function renderDemo() {
+    const d = demos[demoIndex];
+    demoText.textContent = d.typed.slice(0, charIndex);
+    demoCands.querySelectorAll("span").forEach((el, i) => {
+      el.textContent = d.cands[i] || "";
+      el.classList.toggle("on", i === candIndex);
+    });
+    demoPill.textContent = phase === "typing" ? "IME ON" : "変換中";
+  }
+
+  function tickDemo() {
+    if (phase === "typing") {
+      if (charIndex < demos[demoIndex].typed.length) {
+        charIndex++;
+        renderDemo();
+        setTimeout(tickDemo, 95);
+      } else {
+        phase = "converting";
+        setTimeout(tickDemo, 420);
+      }
+    } else if (phase === "converting") {
+      candIndex = (candIndex + 1) % 3;
+      renderDemo();
+      if (candIndex === 0) {
+        phase = "hold";
+        setTimeout(tickDemo, 1400);
+      } else {
+        setTimeout(tickDemo, 620);
+      }
+    } else {
+      demoIndex = (demoIndex + 1) % demos.length;
+      charIndex = 0;
+      candIndex = 0;
+      phase = "typing";
+      renderDemo();
+      setTimeout(tickDemo, 700);
+    }
+  }
+  renderDemo();
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(tickDemo, 900);
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("in");
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+})();
+</script>
+</body>
+</html>
