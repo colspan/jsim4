@@ -331,7 +331,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script src="vendor/hechima/hechima.js"></script>
+<script src="vendor/hechima/hechima.js?v=0.25.0"></script>
 <script>
 (() => {
   "use strict";
@@ -608,7 +608,7 @@
 
   // ---- hechima session -------------------------------------------------------
 
-  const worker = new Worker("vendor/hechima/hechima-worker.js");
+  const worker = new Worker("vendor/hechima/hechima-worker.js?v=0.25.0");
   worker.addEventListener("error", (e) => {
     engineStatus.textContent = `エンジン worker の読み込みに失敗しました: ${e.message || "スクリプトを取得できません"}`;
     engineStatus.className = "status-line error";
