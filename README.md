@@ -1,12 +1,12 @@
 # JSIM — Browser Japanese & Korean IME
 
 The original **JSIM** (Colspan, 2009) rebuilt for the modern web.
-Two self-contained IME pages, a bilingual landing page, and a real
+Two self-contained IME pages, a trilingual landing page (JA / EN / KO), and a real
 kana-kanji conversion engine powered by **Mozc compiled to WebAssembly**.
 
 - **Japanese IME** — `japanese.html`
 - **Korean IME** — `korean.html`
-- **Landing page (JA / EN)** — `index.html`
+- **Landing page (JA / EN / KO)** — `index.html`
 
 ## What changed
 
@@ -94,7 +94,7 @@ A clean-room **dubeolsik** Hangul automaton implemented in the page:
 ## Structure
 
 ```
-index.html                     bilingual landing page (inline CSS/JS)
+index.html                     trilingual landing page (inline CSS/JS)
 japanese.html                  Mozc WASM Japanese IME (inline app code)
 korean.html                    dubeolsik Korean IME (inline engine + UI)
 vendor/
