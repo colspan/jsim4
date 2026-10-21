@@ -1,0 +1,1356 @@
+(function(global, factory) {
+	typeof exports === "object" && typeof module !== "undefined" ? factory(exports) : typeof define === "function" && define.amd ? define(["exports"], factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, factory(global.Hechima = {}));
+})(this, function(exports) {
+	Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+	//#region src/hechima/version.ts
+	const HECHIMA_VERSION = "0.25.0";
+	//#endregion
+	//#region src/hechima/session.ts
+	/** よみの表示文節。末尾の待ち（仮表示）があれば、その文字数を `pending` に添える */
+	function yomiView(settled, pending) {
+		const n = [...pending].length;
+		return n > 0 ? {
+			text: settled + pending,
+			kind: "yomi",
+			pending: n
+		} : {
+			text: settled,
+			kind: "yomi"
+		};
+	}
+	const ROMAJI = {
+		a: "あ",
+		i: "い",
+		u: "う",
+		e: "え",
+		o: "お",
+		ka: "か",
+		ki: "き",
+		ku: "く",
+		ke: "け",
+		ko: "こ",
+		ga: "が",
+		gi: "ぎ",
+		gu: "ぐ",
+		ge: "げ",
+		go: "ご",
+		sa: "さ",
+		si: "し",
+		su: "す",
+		se: "せ",
+		so: "そ",
+		za: "ざ",
+		zi: "じ",
+		zu: "ず",
+		ze: "ぜ",
+		zo: "ぞ",
+		ta: "た",
+		ti: "ち",
+		tu: "つ",
+		te: "て",
+		to: "と",
+		da: "だ",
+		di: "ぢ",
+		du: "づ",
+		de: "で",
+		do: "ど",
+		na: "な",
+		ni: "に",
+		nu: "ぬ",
+		ne: "ね",
+		no: "の",
+		n: "ん",
+		"n'": "ん",
+		ha: "は",
+		hi: "ひ",
+		hu: "ふ",
+		he: "へ",
+		ho: "ほ",
+		fu: "ふ",
+		ba: "ば",
+		bi: "び",
+		bu: "ぶ",
+		be: "べ",
+		bo: "ぼ",
+		pa: "ぱ",
+		pi: "ぴ",
+		pu: "ぷ",
+		pe: "ぺ",
+		po: "ぽ",
+		ma: "ま",
+		mi: "み",
+		mu: "む",
+		me: "め",
+		mo: "も",
+		ya: "や",
+		yu: "ゆ",
+		yo: "よ",
+		ra: "ら",
+		ri: "り",
+		ru: "る",
+		re: "れ",
+		ro: "ろ",
+		wa: "わ",
+		wo: "を",
+		wi: "うぃ",
+		we: "うぇ",
+		kya: "きゃ",
+		kyu: "きゅ",
+		kyo: "きょ",
+		kye: "きぇ",
+		gya: "ぎゃ",
+		gyu: "ぎゅ",
+		gyo: "ぎょ",
+		sha: "しゃ",
+		shi: "し",
+		shu: "しゅ",
+		she: "しぇ",
+		sho: "しょ",
+		sya: "しゃ",
+		syu: "しゅ",
+		syo: "しょ",
+		ja: "じゃ",
+		ji: "じ",
+		ju: "じゅ",
+		je: "じぇ",
+		jo: "じょ",
+		jya: "じゃ",
+		jyu: "じゅ",
+		jyo: "じょ",
+		zya: "じゃ",
+		zyu: "じゅ",
+		zyo: "じょ",
+		cha: "ちゃ",
+		chi: "ち",
+		chu: "ちゅ",
+		che: "ちぇ",
+		cho: "ちょ",
+		tya: "ちゃ",
+		tyu: "ちゅ",
+		tyo: "ちょ",
+		dya: "ぢゃ",
+		dyu: "ぢゅ",
+		dyo: "ぢょ",
+		tsu: "つ",
+		tsa: "つぁ",
+		tsi: "つぃ",
+		tse: "つぇ",
+		tso: "つぉ",
+		tha: "てゃ",
+		thi: "てぃ",
+		thu: "てゅ",
+		the: "てぇ",
+		tho: "てょ",
+		dha: "でゃ",
+		dhi: "でぃ",
+		dhu: "でゅ",
+		dhe: "でぇ",
+		dho: "でょ",
+		nya: "にゃ",
+		nyu: "にゅ",
+		nyo: "にょ",
+		hya: "ひゃ",
+		hyu: "ひゅ",
+		hyo: "ひょ",
+		fa: "ふぁ",
+		fi: "ふぃ",
+		fe: "ふぇ",
+		fo: "ふぉ",
+		bya: "びゃ",
+		byu: "びゅ",
+		byo: "びょ",
+		pya: "ぴゃ",
+		pyu: "ぴゅ",
+		pyo: "ぴょ",
+		mya: "みゃ",
+		myu: "みゅ",
+		myo: "みょ",
+		rya: "りゃ",
+		ryu: "りゅ",
+		ryo: "りょ",
+		va: "ヴァ",
+		vi: "ヴィ",
+		vu: "ヴ",
+		ve: "ヴェ",
+		vo: "ヴォ",
+		qa: "くぁ",
+		qi: "くぃ",
+		qe: "くぇ",
+		qo: "くぉ",
+		xa: "ぁ",
+		xi: "ぃ",
+		xu: "ぅ",
+		xe: "ぇ",
+		xo: "ぉ",
+		la: "ぁ",
+		li: "ぃ",
+		lu: "ぅ",
+		le: "ぇ",
+		lo: "ぉ",
+		xya: "ゃ",
+		xyu: "ゅ",
+		xyo: "ょ",
+		lya: "ゃ",
+		lyu: "ゅ",
+		lyo: "ょ",
+		xtu: "っ",
+		xtsu: "っ",
+		ltu: "っ",
+		ltsu: "っ",
+		xwa: "ゎ",
+		lwa: "ゎ",
+		"-": "ー",
+		",": "、",
+		".": "。",
+		"[": "「",
+		"]": "」",
+		"?": "？",
+		"!": "！",
+		"/": "・"
+	};
+	const HOST_NAV_KEYS = /* @__PURE__ */ new Set([
+		"Backspace",
+		"Delete",
+		"ArrowLeft",
+		"ArrowRight",
+		"ArrowUp",
+		"ArrowDown",
+		"Home",
+		"End",
+		"PageUp",
+		"PageDown",
+		"Enter",
+		"Tab",
+		"Escape"
+	]);
+	const PREFIXES = /* @__PURE__ */ new Set(["nn"]);
+	for (const k of Object.keys(ROMAJI)) for (let i = 1; i < k.length; i++) PREFIXES.add(k.slice(0, i));
+	const isVowelY = (c) => c !== void 0 && "aiueoy".includes(c);
+	const isCons = (c) => c !== void 0 && /[bcdfghjklmpqrstvwxz]/.test(c);
+	function resolveRomaji(kana, pend, flush) {
+		for (;;) {
+			if (!pend) break;
+			const exact = Object.prototype.hasOwnProperty.call(ROMAJI, pend);
+			const wait = PREFIXES.has(pend);
+			if (!flush && wait) break;
+			if (exact) {
+				kana += ROMAJI[pend];
+				pend = "";
+				break;
+			}
+			if (pend[0] === "n") {
+				if (pend[1] === "n") {
+					if (isVowelY(pend[2])) {
+						kana += "ん";
+						pend = pend.slice(1);
+						continue;
+					}
+					kana += "ん";
+					pend = pend.slice(2);
+					continue;
+				}
+				kana += "ん";
+				pend = pend.slice(1);
+				continue;
+			}
+			if (pend.length >= 2 && pend[0] === pend[1] && isCons(pend[0])) {
+				kana += "っ";
+				pend = pend.slice(1);
+				continue;
+			}
+			kana += pend[0];
+			pend = pend.slice(1);
+		}
+		return {
+			kana,
+			pend
+		};
+	}
+	function toKatakana(s) {
+		let out = "";
+		for (const ch of s) {
+			const c = ch.codePointAt(0) ?? 0;
+			out += c >= 12353 && c <= 12438 ? String.fromCodePoint(c + 96) : ch;
+		}
+		return out;
+	}
+	function fallbackConvert(yomi) {
+		const kata = toKatakana(yomi);
+		return [{
+			key: yomi,
+			candidates: kata !== yomi ? [kata, yomi] : [yomi]
+		}];
+	}
+	function toZenkakuAscii(s) {
+		let out = "";
+		for (const ch of s) {
+			const c = ch.codePointAt(0) ?? 0;
+			out += ch === " " ? "　" : c >= 33 && c <= 126 ? String.fromCodePoint(c + 65248) : ch;
+		}
+		return out;
+	}
+	function eijiVariants(raw) {
+		const lower = raw.toLowerCase();
+		const capital = lower ? lower[0].toUpperCase() + lower.slice(1) : lower;
+		return [{
+			key: raw,
+			candidates: [
+				raw,
+				lower,
+				raw.toUpperCase(),
+				capital,
+				toZenkakuAscii(raw)
+			]
+		}];
+	}
+	function mergeEijiConvert(raw, result) {
+		const variants = eijiVariants(raw)[0].candidates ?? [raw];
+		let engineCands = [];
+		if (result && result.length === 1 && result[0].key === raw) engineCands = (result[0].candidates ?? []).filter((c) => c !== raw);
+		return [{
+			key: raw,
+			candidates: [
+				variants[0],
+				...engineCands,
+				...variants.slice(1)
+			]
+		}];
+	}
+	/**
+	* 変換セッションを作る。cb は SessionCallbacks（QuuBee 実証済みの 5 点契約）。
+	*
+	* よみ入力 → 変換 (非同期・世代トークンで in-flight 破棄) → 複数文節の候補選択
+	* (←→ 移動・↑↓/Space 候補・Enter 結合確定) → 確定、を 1 つの状態機械で持つ。
+	*
+	* opts.fold を渡すと候補を二層化する（省略 = 従来どおり全候補を 1 つの流れで巡回）。
+	*/
+	function createFep(cb, opts) {
+		let foldOpts = opts?.fold;
+		let active = false;
+		let kana = "";
+		let pend = "";
+		let segs = null;
+		let focus = 0;
+		let genId = 0;
+		let eiji = false;
+		let addlShown = 0;
+		let addlSel = null;
+		const composing = () => (kana + pend).length > 0;
+		const resetAddl = () => {
+			addlShown = 0;
+			addlSel = null;
+		};
+		const repend = () => {
+			if (eiji || pend) return;
+			const run = /[a-z]+$/.exec(kana)?.[0];
+			if (!run) return;
+			for (let i = 0; i < run.length; i++) {
+				const tail = run.slice(i);
+				if (PREFIXES.has(tail)) {
+					kana = kana.slice(0, kana.length - tail.length);
+					pend = tail;
+					return;
+				}
+			}
+		};
+		const eijiAppend = (ch) => {
+			kana += ch;
+			genId++;
+			render();
+		};
+		const clear = () => {
+			kana = "";
+			pend = "";
+			segs = null;
+			focus = 0;
+			genId++;
+			eiji = false;
+			resetAddl();
+		};
+		const backToYomi = () => {
+			segs = null;
+			focus = 0;
+			genId++;
+			resetAddl();
+		};
+		function addlAll() {
+			if (!segs) return [];
+			const key = segs[focus].key;
+			const kata = toKatakana(key);
+			const out = [];
+			if (kata !== key) out.push({
+				text: kata,
+				annotation: "カタカナ"
+			});
+			out.push({
+				text: key,
+				annotation: "ひらがな"
+			});
+			return out;
+		}
+		function addlVisible() {
+			const all = addlAll();
+			const n = Math.min(addlShown, all.length);
+			return n <= 0 ? [] : all.slice(all.length - n);
+		}
+		/** 文節 i の現在の出力テキスト（注目文節で追加候補を選択中ならそれを優先） */
+		function segText(s, i) {
+			if (i === focus && addlSel !== null) {
+				const v = addlVisible();
+				if (addlSel < v.length) return v[addlSel].text;
+			}
+			return s.candidates[s.idx];
+		}
+		/** 次候補（↓ / Space / SandS 単打 convert）。追加候補領域内なら下へ、末尾で通常候補の先頭へ戻る */
+		function candNext() {
+			if (!segs) return;
+			if (addlSel !== null) {
+				if (addlSel + 1 < addlVisible().length) addlSel++;
+				else {
+					addlSel = null;
+					segs[focus].idx = 0;
+				}
+				render();
+				return;
+			}
+			const s = segs[focus];
+			s.idx = (s.idx + 1) % candRange(s);
+			render();
+		}
+		/** 前候補（↑ / 内蔵経路の Shift+Space）。通常候補の先頭でさらに上 = 追加候補を段階展開 */
+		function candPrev() {
+			if (!segs) return;
+			if (addlSel !== null) {
+				if (addlSel > 0) addlSel--;
+				else if (addlShown < addlAll().length) addlShown++;
+				render();
+				return;
+			}
+			const s = segs[focus];
+			if (s.idx === 0 && addlAll().length > 0) {
+				if (addlShown === 0) addlShown = 1;
+				addlSel = addlVisible().length - 1;
+				render();
+				return;
+			}
+			const range = candRange(s);
+			s.idx = (s.idx + range - 1) % range;
+			render();
+		}
+		function render() {
+			if (segs) cb.show(segs.map((s, i) => ({
+				text: segText(s, i),
+				kind: i === focus ? "focus" : "other",
+				candidates: s.candidates.slice(),
+				candidateIndex: s.idx,
+				...s.fold < s.candidates.length || s.expanded ? {
+					foldCount: s.fold,
+					expanded: s.expanded
+				} : {},
+				...i === focus && addlShown > 0 ? {
+					additional: addlVisible(),
+					...addlSel !== null ? { additionalIndex: addlSel } : {}
+				} : {}
+			})));
+			else if (composing()) cb.show([yomiView(kana, pend)]);
+			else cb.hide();
+			maybeSuggest();
+		}
+		let suggestSegs = null;
+		let suggestCands = [];
+		let suggestKey = "";
+		let suggestGen = 0;
+		let suggestOn = true;
+		/** いまのよみを求める（pend を flush した形。表示は変えない） */
+		const suggestYomi = () => composing() ? resolveRomaji(kana, pend, true).kana : "";
+		function clearSuggest() {
+			const had = suggestKey !== "" || suggestCands.length > 0;
+			suggestSegs = null;
+			suggestCands = [];
+			suggestKey = "";
+			suggestGen++;
+			if (had && cb.suggest) cb.suggest([]);
+		}
+		/** よみが変わったときだけ引き直す（render は候補移動などでも呼ばれる） */
+		function maybeSuggest() {
+			if (!suggestOn || !cb.suggest || !cb.convert) return;
+			if (segs) {
+				if (suggestKey) clearSuggest();
+				return;
+			}
+			const yomi = suggestYomi();
+			if (yomi === suggestKey) return;
+			if (!yomi) {
+				clearSuggest();
+				return;
+			}
+			suggestKey = yomi;
+			const gen = ++suggestGen;
+			Promise.resolve(cb.convert(yomi)).then((result) => {
+				if (gen !== suggestGen || segs || suggestYomi() !== yomi) return;
+				const cands = result?.[0]?.candidates;
+				if (!result || !result.length || !cands || !cands.length) {
+					suggestSegs = null;
+					suggestCands = [];
+					cb.suggest([]);
+					return;
+				}
+				suggestSegs = result;
+				suggestCands = cands.slice();
+				cb.suggest(suggestCands.slice());
+			}).catch(() => {});
+		}
+		/**
+		* サジェストの n 番目を選んで確定する（v0.22.0+）。
+		* **保持した変換結果を Phase 2 へ昇格させてから部分確定する**ので、変換は走り直さない。
+		* 選んだ語がよみ全体を覆っていなければ、残りは候補選択状態で続く（commitFocused と同じ）。
+		*/
+		function commitSuggestion(index) {
+			if (!active || segs || !suggestSegs) return false;
+			const text = suggestCands[index];
+			if (text === void 0) return false;
+			if (suggestYomi() !== suggestKey) return false;
+			const promoted = suggestSegs;
+			kana = resolveRomaji(kana, pend, true).kana;
+			pend = "";
+			segs = promoted.map(ingestSegment);
+			focus = 0;
+			const at = segs[0].candidates.indexOf(text);
+			segs[0].idx = at >= 0 ? at : 0;
+			resetAddl();
+			return commitFocused();
+		}
+		const joined = () => (segs ?? []).map((s, i) => segText(s, i)).join("");
+		let lastCommit = null;
+		function commit(text) {
+			const learned = segs && cb.learn && !eiji ? segs.map((s, i) => ({
+				key: s.key,
+				value: segText(s, i)
+			})) : null;
+			if (learned) try {
+				cb.learn(learned);
+			} catch {}
+			lastCommit = segs ? {
+				text,
+				segs,
+				focus,
+				kana,
+				learned
+			} : null;
+			clear();
+			clearSuggest();
+			cb.commit(text);
+		}
+		/**
+		* 注目文節までを確定し、**残りを候補選択状態のまま残す**（v0.21.0+）。
+		*
+		* フリック等のタッチ入力では、候補をタップした時点でその文節が確定して次の文節へ
+		* 進むのが作法（iOS / Android の日本語入力と同じ）。全体確定しか無いと、タップの
+		* たびに「まだ確定していない」状態が積み上がってしまう。
+		*
+		* 注目が最後の文節なら全体確定（= commit）と同じ。候補選択中でなければ false。
+		* **確定アンドゥの対象外**にしてある —— 戻す先が「確定した前半」と「残った後半」に
+		* 割れていて、片方だけ戻すと文書とセッションが食い違うため。
+		*/
+		function commitFocused() {
+			if (!active || !segs) return false;
+			const cur = segs;
+			if (focus >= cur.length - 1) {
+				commit(joined());
+				return true;
+			}
+			const head = cur.slice(0, focus + 1);
+			const tail = cur.slice(focus + 1);
+			const text = head.map((s, i) => segText(s, i)).join("");
+			if (cb.learn && !eiji) try {
+				cb.learn(head.map((s, i) => ({
+					key: s.key,
+					value: segText(s, i)
+				})));
+			} catch {}
+			segs = tail;
+			focus = 0;
+			kana = tail.map((s) => s.key).join("");
+			lastCommit = null;
+			genId++;
+			resetAddl();
+			cb.commit(text);
+			render();
+			return true;
+		}
+		async function reconvert(surface) {
+			if (!active || !cb.reconvert || segs || composing()) return false;
+			if (engine && engine.getState().isComposing) return false;
+			if (!surface) return false;
+			const gen = ++genId;
+			let result = null;
+			try {
+				result = await Promise.resolve(cb.reconvert(surface));
+			} catch {
+				result = null;
+			}
+			if (gen !== genId || segs || composing()) return false;
+			if (!result || !result.length) return false;
+			segs = result.map(ingestSegment);
+			kana = segs.map((s) => s.key).join("");
+			focus = 0;
+			resetAddl();
+			render();
+			return true;
+		}
+		function undoCommit() {
+			if (!lastCommit || composing() || !cb.retract) return false;
+			let removed = false;
+			try {
+				removed = cb.retract(lastCommit.text);
+			} catch {
+				removed = false;
+			}
+			if (!removed) return false;
+			segs = lastCommit.segs;
+			focus = lastCommit.focus;
+			kana = lastCommit.kana;
+			genId++;
+			resetAddl();
+			if (lastCommit.learned) try {
+				cb.unlearn?.(lastCommit.learned);
+			} catch {}
+			lastCommit = null;
+			render();
+			return true;
+		}
+		function ingestSegment(s) {
+			const src = s.candidates && s.candidates.length ? s.candidates : [s.key];
+			const hasCosts = Array.isArray(s.costs) && s.costs.length === src.length;
+			const cands = [];
+			const costs = [];
+			const seen = /* @__PURE__ */ new Set();
+			for (let i = 0; i < src.length; i++) {
+				if (seen.has(src[i])) continue;
+				seen.add(src[i]);
+				cands.push(src[i]);
+				if (hasCosts) costs.push(s.costs[i]);
+			}
+			const cs = hasCosts ? costs : null;
+			return {
+				key: s.key,
+				candidates: cands,
+				idx: 0,
+				fold: foldCount(cands, cs),
+				expanded: false,
+				expandedFrom: 0,
+				costs: cs
+			};
+		}
+		function foldCount(cands, costs) {
+			const delta = foldOpts?.costDelta ?? 0;
+			if (!delta || !costs || !costs.length) return cands.length;
+			const base = costs[0];
+			let n = 0;
+			while (n < costs.length && costs[n] - base <= delta) n++;
+			const lo = Math.max(1, foldOpts?.minCandidates ?? 5);
+			const hi = Math.max(lo, foldOpts?.maxCandidates ?? 15);
+			return Math.min(cands.length, Math.min(hi, Math.max(lo, n)));
+		}
+		/** 候補巡回の範囲（一層目のみ / 展開後は全件） */
+		function candRange(s) {
+			return s.expanded ? s.candidates.length : Math.max(1, s.fold);
+		}
+		function startConvert() {
+			kana = resolveRomaji(kana, pend, true).kana;
+			pend = "";
+			render();
+			const yomi = kana;
+			const gen = ++genId;
+			(eiji && /^[\x20-\x7e]+$/.test(yomi) ? Promise.resolve(cb.convert ? cb.convert(yomi) : null).then((r) => mergeEijiConvert(yomi, r), () => eijiVariants(yomi)) : Promise.resolve(cb.convert ? cb.convert(yomi) : null)).then((result) => {
+				if (gen !== genId || !composing() || kana !== yomi) return;
+				if (!result || !result.length) result = fallbackConvert(yomi);
+				segs = result.map(ingestSegment);
+				focus = 0;
+				resetAddl();
+				render();
+			}).catch(() => {});
+		}
+		function startResize(offset) {
+			if (!segs || !cb.resize) return;
+			const idx = focus;
+			const gen = ++genId;
+			const keys = segs.map((s) => s.key);
+			Promise.resolve(cb.resize(idx, offset, keys)).then((result) => {
+				if (gen !== genId || !segs) return;
+				if (!result || !result.length) return;
+				segs = result.map(ingestSegment);
+				focus = Math.min(idx, segs.length - 1);
+				resetAddl();
+				render();
+			}).catch(() => {});
+		}
+		let engine = null;
+		let engineKeyOf = null;
+		let commitYomiDirect = false;
+		function pumpEngine() {
+			if (!engine) return;
+			if (segs) {
+				const st = engine.getState();
+				if (!st.isComposing && !st.confirmedText) return;
+				commit(joined());
+			}
+			const confirmed = engine.takeConfirmedText();
+			const direct = commitYomiDirect;
+			commitYomiDirect = false;
+			if (confirmed) {
+				if (engine.getState().inputMode === "english") {
+					cb.commit(confirmed);
+					return;
+				}
+				if (direct) {
+					commit(kana + confirmed);
+					return;
+				}
+				kana += confirmed;
+				pend = "";
+				startConvert();
+				return;
+			}
+			const st = engine.getState();
+			if (st.isComposing) cb.show([yomiView(kana + st.composingKana, st.pendingDisplay)]);
+			else if (!(kana || pend)) cb.hide();
+		}
+		function navCandidates(tap) {
+			const k = tap.key;
+			const cur = segs;
+			if (!cur) return false;
+			if (k === "Enter") {
+				commit(joined());
+				return true;
+			}
+			if (k === "Escape" || k === "Backspace") {
+				backToYomi();
+				render();
+				return true;
+			}
+			if (k === "ArrowLeft" || k === "ArrowRight") {
+				if (tap.shiftKey) {
+					if (cb.resize) startResize(k === "ArrowRight" ? 1 : -1);
+					return true;
+				}
+				if (cur.length > 1) {
+					focus = (focus + (k === "ArrowRight" ? 1 : cur.length - 1)) % cur.length;
+					resetAddl();
+				}
+				render();
+				return true;
+			}
+			if (k === "ArrowUp" || k === "ArrowDown") {
+				if (k === "ArrowDown") candNext();
+				else candPrev();
+				return true;
+			}
+			return true;
+		}
+		function handleEngineAction(action) {
+			const t = action.type;
+			if (t === "insertSpace") {
+				if (!(!segs && !composing() && !(engine && engine.getState().isComposing))) {
+					if (action.shifted && segs) {
+						candPrev();
+						return true;
+					}
+					return handleEngineAction({ type: "convert" });
+				}
+				cb.commit(action.shifted ? " " : "　");
+				return true;
+			}
+			if (t === "editSegmentLeft" || t === "editSegmentRight") {
+				if (segs && cb.resize) startResize(t === "editSegmentRight" ? 1 : -1);
+				return true;
+			}
+			if (t === "convert" || t === "confirm" || t === "insertAndConfirm") {
+				const yomiRestored = !segs && composing() && !(engine && engine.getState().isComposing);
+				if (!segs && !yomiRestored) {
+					if (t === "insertAndConfirm" || t === "confirm" && engine && engine.getState().isComposing) commitYomiDirect = true;
+					return false;
+				}
+				if (t === "convert") {
+					if (segs) candNext();
+					else startConvert();
+					return true;
+				}
+				commit(segs ? joined() : kana);
+				if (action.type === "insertAndConfirm") cb.commit(action.text);
+				return true;
+			}
+			if (t !== "moveLeft" && t !== "moveRight" && t !== "deleteBack") return false;
+			if (segs) {
+				if (t === "deleteBack") {
+					backToYomi();
+					render();
+					return true;
+				}
+				if (segs.length > 1) {
+					focus = (focus + (t === "moveRight" ? 1 : segs.length - 1)) % segs.length;
+					resetAddl();
+				}
+				render();
+				return true;
+			}
+			if (engine && engine.getState().isComposing) {
+				if (t === "deleteBack") return false;
+				return true;
+			}
+			if (composing()) {
+				if (t === "deleteBack") {
+					kana = Array.from(kana).slice(0, -1).join("");
+					genId++;
+					render();
+					return true;
+				}
+				return true;
+			}
+			if (cb.hostKey) cb.hostKey(t === "deleteBack" ? "Backspace" : t === "moveRight" ? "ArrowRight" : "ArrowLeft");
+			return true;
+		}
+		const PHASE2_NAV_KEYS = /* @__PURE__ */ new Set([
+			"Enter",
+			"Escape",
+			"Backspace",
+			"ArrowLeft",
+			"ArrowRight",
+			"ArrowUp",
+			"ArrowDown"
+		]);
+		function engineDown(tap) {
+			if (!engine.isChord && tap.shiftKey && !tap.ctrlKey && !tap.altKey && !tap.metaKey && /^[a-zA-Z]$/.test(tap.key) && !engine.getState().isComposing && !composing()) {
+				kana = tap.key;
+				pend = "";
+				eiji = true;
+				genId++;
+				render();
+				return true;
+			}
+			if (!engine) return false;
+			if (segs) {
+				if (tap.key === "Shift" || tap.key === "Control" || tap.key === "Alt" || tap.key === "Meta") return true;
+				if (tap.ctrlKey || tap.altKey || tap.metaKey) {
+					commit(joined());
+					return false;
+				}
+				if (tap.repeat) return true;
+				if (PHASE2_NAV_KEYS.has(tap.key)) return navCandidates(tap);
+				const kev = engineKeyOf ? engineKeyOf(tap) : null;
+				if (!kev) {
+					commit(joined());
+					return false;
+				}
+				engine.processKey(kev);
+				pumpEngine();
+				return true;
+			}
+			if (tap.key === "Backspace" && tap.ctrlKey && !tap.altKey && !tap.metaKey && !engine.getState().isComposing && !composing()) return undoCommit() ? true : false;
+			if (tap.ctrlKey || tap.altKey || tap.metaKey) return false;
+			if (tap.repeat) return true;
+			const composingNow = engine.getState().isComposing;
+			if (!composingNow && composing()) {
+				const k = tap.key;
+				if (k === "Backspace") {
+					kana = Array.from(kana).slice(0, -1).join("");
+					genId++;
+					render();
+					return true;
+				}
+				if (k === "Enter") {
+					commit(kana);
+					return true;
+				}
+				if (k === "Escape") {
+					clear();
+					cb.hide();
+					return true;
+				}
+				if (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown") return true;
+			}
+			const printable = tap.key.length === 1 && tap.key >= " " && tap.key <= "~";
+			if (eiji && !segs && printable && tap.key !== " ") {
+				eijiAppend(tap.key);
+				return true;
+			}
+			if (!composingNow && tap.code !== void 0 && HOST_NAV_KEYS.has(tap.code)) return false;
+			const kev = engineKeyOf ? engineKeyOf(tap) : null;
+			if (!kev) return false;
+			engine.processKey(kev);
+			pumpEngine();
+			return true;
+		}
+		function engineUp(tap) {
+			if (!engine) return false;
+			if (tap.ctrlKey || tap.altKey || tap.metaKey) return false;
+			const kev = engineKeyOf ? engineKeyOf(tap) : null;
+			if (kev) {
+				engine.processKeyUp(kev);
+				pumpEngine();
+			}
+			return false;
+		}
+		/**
+		* 機能キー（Ctrl+BS / Enter / Escape / BS / Space / 矢印）の内蔵処理。
+		*
+		* feed（配列エンジン未注入のとき）と **feedDirect（注入の有無に関わらず）** の共通部分。
+		* 戻り値 null = 機能キーではない（呼び元が印字キーとして続ける）。
+		*/
+		function builtinNav(e) {
+			if (e.key === "Backspace" && e.ctrlKey && !e.altKey && !e.metaKey && !composing()) return undoCommit() ? true : false;
+			if (e.ctrlKey || e.altKey || e.metaKey) return false;
+			const k = e.key;
+			if (k === "Enter") {
+				if (!composing()) return false;
+				commit(segs ? joined() : resolveRomaji(kana, pend, true).kana);
+				return true;
+			}
+			if (k === "Escape") {
+				if (!composing()) return false;
+				if (segs) backToYomi();
+				else clear();
+				render();
+				return true;
+			}
+			if (k === "Backspace") {
+				if (!composing()) return false;
+				if (segs) backToYomi();
+				else {
+					if (pend) pend = pend.slice(0, -1);
+					else kana = Array.from(kana).slice(0, -1).join("");
+					repend();
+				}
+				if (!composing()) eiji = false;
+				render();
+				return true;
+			}
+			if (k === " ") {
+				if (!composing()) return false;
+				if (segs) if (e.shiftKey) candPrev();
+				else candNext();
+				else startConvert();
+				return true;
+			}
+			if (k === "ArrowLeft" || k === "ArrowRight") {
+				if (!composing()) return false;
+				if (segs && e.shiftKey) {
+					if (cb.resize) startResize(k === "ArrowRight" ? 1 : -1);
+					return true;
+				}
+				if (segs && segs.length > 1) {
+					focus = (focus + (k === "ArrowRight" ? 1 : segs.length - 1)) % segs.length;
+					resetAddl();
+					render();
+				}
+				return true;
+			}
+			if (k === "ArrowUp" || k === "ArrowDown") {
+				if (!composing()) return false;
+				if (segs) if (k === "ArrowDown") candNext();
+				else candPrev();
+				return true;
+			}
+			return null;
+		}
+		function feed(e) {
+			if (!active) return false;
+			if (engine) return engineDown(e);
+			const nav = builtinNav(e);
+			if (nav !== null) return nav;
+			const k = e.key;
+			if (k.length === 1 && k >= " " && k <= "~") {
+				if (/[a-zA-Z]/.test(k) && e.shiftKey) {
+					if (segs) commit(joined());
+					kana = resolveRomaji(kana, pend, true).kana + k;
+					pend = "";
+					eiji = true;
+					genId++;
+					render();
+					return true;
+				}
+				if (eiji && !segs) {
+					eijiAppend(k);
+					return true;
+				}
+				const ch = k.toLowerCase();
+				if (!composing() && !/[a-z]/.test(ch) && ROMAJI[ch] === void 0) return false;
+				if (segs) commit(joined());
+				pend += ch;
+				const r = resolveRomaji(kana, pend, false);
+				kana = r.kana;
+				pend = r.pend;
+				genId++;
+				render();
+				return true;
+			}
+			return composing();
+		}
+		function insertKana(text, replaceCount = 0) {
+			if (!active) return false;
+			if (typeof text !== "string" || text.length === 0) return false;
+			if (!Number.isInteger(replaceCount) || replaceCount < 0) return false;
+			if (engine && engine.getState().isComposing) return false;
+			if (segs) {
+				if (replaceCount > 0) return false;
+				commit(joined());
+			}
+			if (pend) {
+				kana = resolveRomaji(kana, pend, true).kana;
+				pend = "";
+			}
+			if (replaceCount > 0) {
+				const chars = Array.from(kana);
+				if (chars.length < replaceCount) return false;
+				kana = chars.slice(0, chars.length - replaceCount).join("");
+			}
+			kana += text;
+			genId++;
+			render();
+			return true;
+		}
+		return {
+			get active() {
+				return active;
+			},
+			setActive(on) {
+				on = !!on;
+				if (active && !on && composing()) {
+					clear();
+					cb.hide();
+				}
+				active = on;
+				return active;
+			},
+			toggle() {
+				return this.setActive(!active);
+			},
+			feed,
+			feedUp(e) {
+				return engine ? engineUp(e) : false;
+			},
+			feedDirect(e) {
+				if (!active) return false;
+				const nav = builtinNav(e);
+				return nav === null ? false : nav;
+			},
+			commitFocused,
+			commitSuggestion,
+			setSuggest(on) {
+				const next = !!on;
+				if (suggestOn === next) return;
+				suggestOn = next;
+				if (!suggestOn) clearSuggest();
+				else maybeSuggest();
+			},
+			setEngine(eng, keyOf) {
+				if (engine && engine !== eng) {
+					try {
+						engine.reset();
+					} catch {}
+					engine.onHostAction = null;
+					engine.hostPhase = null;
+				}
+				clear();
+				cb.hide();
+				engine = eng ?? null;
+				engineKeyOf = keyOf ?? null;
+				if (engine) {
+					engine.onHostAction = (action) => handleEngineAction(action);
+					engine.hostPhase = () => {
+						if (segs) return "selecting";
+						return composing() || engine.isComposing ? "composing" : "idle";
+					};
+				}
+			},
+			pumpEngine,
+			selectCandidate(index) {
+				if (!segs) return false;
+				const s = segs[focus];
+				if (!Number.isInteger(index) || index < 0 || index >= s.candidates.length) return false;
+				addlSel = null;
+				if (index >= s.fold) s.expanded = true;
+				s.idx = index;
+				render();
+				return true;
+			},
+			expandCandidates() {
+				if (!segs) return false;
+				const s = segs[focus];
+				if (s.expanded || s.fold >= s.candidates.length) return false;
+				s.expandedFrom = s.idx;
+				s.expanded = true;
+				render();
+				return true;
+			},
+			setFold(o) {
+				foldOpts = o ?? void 0;
+				if (!segs) return;
+				for (const s of segs) {
+					s.fold = foldCount(s.candidates, s.costs);
+					if (s.idx >= candRange(s)) s.idx = 0;
+				}
+				render();
+			},
+			collapseCandidates() {
+				if (!segs) return false;
+				const s = segs[focus];
+				if (!s.expanded) return false;
+				s.expanded = false;
+				if (s.idx >= s.fold) s.idx = Math.min(s.expandedFrom, Math.max(0, s.fold - 1));
+				render();
+				return true;
+			},
+			undoCommit,
+			reconvert,
+			insertKana,
+			reset() {
+				clear();
+				if (engine) try {
+					engine.reset();
+				} catch {}
+			}
+		};
+	}
+	//#endregion
+	//#region src/hechima/worker-client.ts
+	function connectWorker(worker, opts) {
+		const maxCands = opts?.maxCands ?? 9;
+		const pending = /* @__PURE__ */ new Map();
+		const pendingLearn = /* @__PURE__ */ new Map();
+		const pendingDict = /* @__PURE__ */ new Map();
+		const pendingPaths = /* @__PURE__ */ new Map();
+		let seq = 0;
+		let ready = null;
+		let initPromise = null;
+		let resolveReady = null;
+		let rejectReady = null;
+		worker.addEventListener("message", (ev) => {
+			const m = ev.data;
+			if (!m || typeof m !== "object") return;
+			if (m.type === "progress") opts?.onProgress?.(m.loaded, m.total);
+			else if (m.type === "ready") {
+				ready = {
+					protocol: m.protocol,
+					version: m.version,
+					features: m.features
+				};
+				resolveReady?.(ready);
+			} else if (m.type === "error") rejectReady?.(new Error(m.message));
+			else if (m.type === "result") {
+				const resolve = pending.get(m.id);
+				if (resolve) {
+					pending.delete(m.id);
+					resolve(m.segments);
+				}
+			} else if (m.type === "learned") {
+				const resolve = pendingLearn.get(m.id);
+				if (resolve) {
+					pendingLearn.delete(m.id);
+					resolve(m.ok);
+				}
+			} else if (m.type === "paths") {
+				const resolve = pendingPaths.get(m.id);
+				if (resolve) {
+					pendingPaths.delete(m.id);
+					resolve(m.paths);
+				}
+			} else if (m.type === "dict") {
+				const resolve = pendingDict.get(m.id);
+				if (resolve) {
+					pendingDict.delete(m.id);
+					resolve(m.entries);
+				}
+			}
+		});
+		function init(paths) {
+			if (!initPromise) initPromise = new Promise((resolve, reject) => {
+				resolveReady = resolve;
+				rejectReady = reject;
+				worker.postMessage({
+					type: "init",
+					...paths
+				});
+			});
+			return initPromise;
+		}
+		/** init 完了を待つ。init 未呼び出しなら既定パスで開始する。失敗は null 扱いにする */
+		async function whenReady() {
+			try {
+				return await init();
+			} catch {
+				return null;
+			}
+		}
+		async function convert(yomi) {
+			if (!await whenReady()) return null;
+			return new Promise((resolve) => {
+				const id = ++seq;
+				pending.set(id, resolve);
+				worker.postMessage({
+					type: "convert",
+					id,
+					kana: yomi,
+					maxCands
+				});
+			});
+		}
+		async function resize(segmentIndex, offset, keys) {
+			const info = await whenReady();
+			if (!info || !info.features.resize) return null;
+			return new Promise((resolve) => {
+				const id = ++seq;
+				pending.set(id, resolve);
+				worker.postMessage({
+					type: "resize",
+					id,
+					segIdx: segmentIndex,
+					offset,
+					maxCands,
+					...keys && keys.length ? { keys: [...keys] } : {}
+				});
+			});
+		}
+		async function learn(segments) {
+			const info = await whenReady();
+			if (!info || info.features.learn === false || !segments.length) return false;
+			return new Promise((resolve) => {
+				const id = ++seq;
+				pendingLearn.set(id, resolve);
+				worker.postMessage({
+					type: "learn",
+					id,
+					kana: segments.map((s) => s.key).join(""),
+					sizes: segments.map((s) => Array.from(s.key).length),
+					values: segments.map((s) => s.value)
+				});
+			});
+		}
+		async function reconvert(surface) {
+			if (!await whenReady()) return null;
+			return new Promise((resolve) => {
+				const id = ++seq;
+				pending.set(id, resolve);
+				worker.postMessage({
+					type: "reconvert",
+					id,
+					surface,
+					maxCands
+				});
+			});
+		}
+		async function paths(kana, o) {
+			const info = await whenReady();
+			if (!info || !info.features.paths) return null;
+			return new Promise((resolve) => {
+				const id = ++seq;
+				pendingPaths.set(id, resolve);
+				worker.postMessage({
+					type: "paths",
+					id,
+					kana,
+					maxPaths: o?.maxPaths,
+					expand: o?.expand
+				});
+			});
+		}
+		async function revert(segments) {
+			if (!await whenReady()) return false;
+			return new Promise((resolve) => {
+				const id = ++seq;
+				pendingLearn.set(id, resolve);
+				worker.postMessage({
+					type: "revert",
+					id,
+					...segments && segments.length ? {
+						kana: segments.map((s) => s.key).join(""),
+						values: segments.map((s) => s.value)
+					} : {}
+				});
+			});
+		}
+		function dictRequest(msg) {
+			return whenReady().then((info) => {
+				if (!info || info.features.dict === false) return null;
+				return new Promise((resolve) => {
+					const id = ++seq;
+					pendingDict.set(id, resolve);
+					worker.postMessage({
+						...msg,
+						id
+					});
+				});
+			});
+		}
+		/** ユーザー辞書の一覧（v0.11.0+）。未対応は null */
+		function dictList() {
+			return dictRequest({ type: "dictList" });
+		}
+		/** ユーザー辞書へ登録（v0.11.0+。pos 省略 = 名詞）。成功 = 更新後の一覧、失敗 = null */
+		function dictAdd(reading, word, pos = 1) {
+			return dictRequest({
+				type: "dictAdd",
+				reading,
+				word,
+				pos
+			});
+		}
+		/** ユーザー辞書から削除（一覧の index）。成功 = 更新後の一覧、失敗 = null */
+		function dictRemove(index) {
+			return dictRequest({
+				type: "dictRemove",
+				index
+			});
+		}
+		async function clearLearning() {
+			if (!await whenReady()) return false;
+			return new Promise((resolve) => {
+				const id = ++seq;
+				pendingLearn.set(id, resolve);
+				worker.postMessage({
+					type: "clearLearning",
+					id
+				});
+			});
+		}
+		return {
+			init,
+			convert,
+			resize,
+			reconvert,
+			paths,
+			learn,
+			revert,
+			clearLearning,
+			dictList,
+			dictAdd,
+			dictRemove,
+			callbacks: () => ({
+				convert,
+				resize,
+				reconvert,
+				learn: (segments) => {
+					learn(segments);
+				},
+				unlearn: (segments) => {
+					revert(segments);
+				}
+			})
+		};
+	}
+	//#endregion
+	//#region src/hechima/protocol.ts
+	/** へちま蔓プロトコル版数。ready 応答の `protocol` で通知される */
+	const HECHIMA_PROTOCOL_VERSION = 0;
+	//#endregion
+	//#region src/hechima/index.ts
+	/** このバンドルのバージョン（取り込み側が記録する用） */
+	const version = HECHIMA_VERSION;
+	//#endregion
+	exports.HECHIMA_PROTOCOL_VERSION = HECHIMA_PROTOCOL_VERSION;
+	exports.connectWorker = connectWorker;
+	exports.createFep = createFep;
+	exports.fallbackConvert = fallbackConvert;
+	exports.resolveRomaji = resolveRomaji;
+	exports.version = version;
+});
