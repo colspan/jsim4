@@ -303,7 +303,7 @@
           <div class="key-row"><span>文節の伸縮</span><span class="keys"><kbd>Shift</kbd><kbd>←</kbd><kbd>→</kbd></span></div>
           <div class="key-row"><span>確定</span><span class="keys"><kbd>Enter</kbd></span></div>
           <div class="key-row"><span>取り消し</span><span class="keys"><kbd>Esc</kbd></span></div>
-          <div class="key-row"><span>候補をさらに表示</span><span class="keys"><kbd>Tab</kbd></span></div>
+          <div class="key-row"><span>候補リストをスクロール</span><span class="keys"><kbd>Tab</kbd></span></div>
           <div class="key-row"><span>確定アンドゥ</span><span class="keys"><kbd>Ctrl</kbd><kbd>Backspace</kbd></span></div>
         </div>
       </div>
@@ -561,17 +561,6 @@
       candidatesEl.appendChild(button);
     });
 
-    if (focus.candidates.length > 9 && !focus.expanded) {
-      const more = document.createElement("div");
-      more.className = "cand-more";
-      const label = document.createElement("span");
-      label.textContent = `${focus.candidates.length - 9} 件をさらに表示`;
-      const key = document.createElement("span");
-      key.innerHTML = "<kbd>Tab</kbd>";
-      more.appendChild(label);
-      more.appendChild(key);
-      candidatesEl.appendChild(more);
-    }
   }
 
   // ---- text editing ----------------------------------------------------------
@@ -741,11 +730,13 @@
       }
     }
 
-    // Tab expands the second layer of candidates when available
+    // Tab scrolls through a long candidate list
     if (e.key === "Tab" && candidatesOpen && !MOD(e)) {
-      if (fep.expandCandidates()) {
+      const maxScroll = candidatesEl.scrollHeight - candidatesEl.clientHeight;
+      if (maxScroll > 0) {
         e.preventDefault();
-        renderSegments(lastSegments);
+        const step = Math.max(40, Math.floor(candidatesEl.clientHeight * 0.8));
+        candidatesEl.scrollTop = candidatesEl.scrollTop + step > maxScroll ? 0 : candidatesEl.scrollTop + step;
         return;
       }
     }

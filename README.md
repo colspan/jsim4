@@ -52,7 +52,7 @@ No build step and no server-side code.
 | Resize a segment | `Shift` + `←` / `→` |
 | Commit | `Enter` |
 | Cancel | `Esc` |
-| Show more candidates | `Tab` |
+| Scroll the candidate list | `Tab` |
 | Undo commit | `Ctrl` + `Backspace` |
 | Select candidate directly | `1`–`9` |
 | Reconvert selected text | JIS `変換` / `Ctrl` + `/` |
