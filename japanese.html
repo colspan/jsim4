@@ -362,6 +362,15 @@
   let lastSegments = [];
   let candidatesOpen = false;
 
+  if (typeof Hechima === "undefined") {
+    engineStatus.textContent = "hechima.js を読み込めませんでした。ページを再読み込みしてください。";
+    engineStatus.className = "status-line error";
+    engineSub.textContent = "エンジン未読込";
+    imePillText.textContent = "エンジン未読込";
+    imePill.classList.remove("on");
+    return;
+  }
+
   const mb = (n) => (n / 1024 / 1024).toFixed(1);
 
   function showToast(message) {
