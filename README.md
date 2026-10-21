@@ -39,6 +39,8 @@ No build step and no server-side code.
 - Conversion, candidate selection, segment resizing, and learning run locally
   in a Web Worker. Input never leaves the browser.
 - If the engine cannot initialize, hechima's kana/katakana fallback still works.
+- Mozc may print harmless console warnings about its user dictionary / history
+  files on first start. They do not affect conversion.
 
 ### Key bindings
 
