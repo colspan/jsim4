@@ -635,7 +635,9 @@
     savedTheme = localStorage.getItem("jsim-theme");
   } catch (_) {}
   const navLang = (navigator.language || "ja").toLowerCase();
-  const initialLang = savedLang || (navLang.startsWith("ja") ? "ja" : navLang.startsWith("ko") ? "ko" : "en");
+  const initialLang = (savedLang === "ja" || savedLang === "en" || savedLang === "ko")
+    ? savedLang
+    : (navLang.startsWith("ja") ? "ja" : navLang.startsWith("ko") ? "ko" : "en");
   const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
   setLang(initialLang);
   setTheme(initialTheme);
