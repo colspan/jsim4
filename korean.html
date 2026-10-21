@@ -249,6 +249,7 @@
           <div class="key-row"><span>조합 취소</span><span class="keys"><kbd>Esc</kbd></span></div>
           <div class="key-row"><span>한 글자 삭제</span><span class="keys"><kbd>Backspace</kbd></span></div>
           <div class="key-row"><span>줄바꿈 / 띄어쓰기</span><span class="keys"><kbd>Enter</kbd> / <kbd>Space</kbd></span></div>
+          <div class="key-row"><span>실행 취소 / 다시 실행</span><span class="keys"><kbd>Ctrl</kbd><kbd>Z</kbd> / <kbd>Ctrl</kbd><kbd>Y</kbd></span></div>
         </div>
       </div>
 
@@ -365,6 +366,40 @@
   const hasComposition = () => !!(state.initial || state.medial || state.final);
   const resetState = () => { state.initial = null; state.medial = null; state.final = null; };
 
+  // ---- undo / redo -----------------------------------------------------------
+
+  const undoStack = [];
+  const redoStack = [];
+
+  function snapshot() {
+    undoStack.push({ value: editor.value, start: editor.selectionStart, end: editor.selectionEnd });
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+  }
+
+  function restore(snap) {
+    editor.value = snap.value;
+    editor.setSelectionRange(snap.start, snap.end);
+    updateCharCount();
+    updateBreakdown();
+  }
+
+  function undo() {
+    if (hasComposition()) cancelComposition();
+    const snap = undoStack.pop();
+    if (!snap) return;
+    redoStack.push({ value: editor.value, start: editor.selectionStart, end: editor.selectionEnd });
+    restore(snap);
+  }
+
+  function redo() {
+    if (hasComposition()) cancelComposition();
+    const snap = redoStack.pop();
+    if (!snap) return;
+    undoStack.push({ value: editor.value, start: editor.selectionStart, end: editor.selectionEnd });
+    restore(snap);
+  }
+
   function compose() {
     if (state.initial && state.medial) {
       const i = INITIALS.indexOf(state.initial);
@@ -448,6 +483,7 @@
   }
 
   function beginComposition() {
+    snapshot();
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
     prefix = editor.value.slice(0, start);
@@ -555,6 +591,18 @@
     if (e.code === "Lang1") { e.preventDefault(); setActive(false); return; }
     if (e.code === "Lang2" || e.code === "KanaMode") { e.preventDefault(); setActive(true); return; }
 
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "y" || e.key === "Y")) {
+      e.preventDefault();
+      redo();
+      return;
+    }
+
     if (!active) return;
 
     // Commit before any native editing or shortcut, but let the key itself through.
@@ -574,6 +622,7 @@
 
     if (e.key === "Backspace" && hasComposition()) {
       e.preventDefault();
+      snapshot();
       backspaceComposing();
       if (hasComposition()) renderComposition();
       else finishComposition();
@@ -582,6 +631,7 @@
 
     if (e.key === "Escape" && hasComposition()) {
       e.preventDefault();
+      snapshot();
       cancelComposition();
       return;
     }
@@ -601,6 +651,7 @@
 
   editor.addEventListener("beforeinput", () => {
     if (hasComposition()) commitComposition();
+    snapshot();
   });
 
   editor.addEventListener("mousedown", () => {
@@ -619,6 +670,7 @@
   $("toggle-btn-2").addEventListener("click", toggle);
 
   $("clear-btn").addEventListener("click", () => {
+    snapshot();
     cancelComposition();
     editor.value = "";
     updateCharCount();
@@ -640,6 +692,7 @@
   });
 
   $("sample-btn").addEventListener("click", () => {
+    snapshot();
     const sample = "안녕하세요. 한국어 입력기입니다.";
     editor.value = sample;
     updateCharCount();

@@ -87,6 +87,7 @@ A clean-room **dubeolsik** Hangul automaton implemented in the page:
 | Cancel composition | `Esc` |
 | Delete one jamo | `Backspace` |
 | Commit + newline / space | `Enter` / `Space` |
+| Undo / redo | `Ctrl` + `Z` / `Ctrl` + `Y` |
 
 > Turn off the OS Korean IME first. A physical keyboard is recommended;
 > soft keyboards on mobile do not emit the `keydown` events this automaton uses.
