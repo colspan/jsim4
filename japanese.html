@@ -1,127 +1,845 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 TRANSITIONAL//EN">
-<html>
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
 <head>
-<title>Japanese IME</title>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta name="keywords" content="日本語入力,日本語IME,Japanese IME,Javascript Japanese IME,Web IME,Javascript IME,Javascript Web IME" />
-<meta name="description" content="Japanese IME built on Javascript." />
-<link rel="stylesheet" href="style/style.css">
-<link rel="stylesheet" href="style/standalone.css">
-<link rel="shortcut icon" type="image/x-icon" href="./favicon.ico" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日本語 IME — Mozc WASM · JSIM</title>
+<meta name="description" content="Mozc を WebAssembly で動かす、ブラウザ完結の日本語 IME。ローマ字入力、かな漢字変換、文節選択、学習に対応。">
+<meta name="theme-color" content="#0b1020">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ff9d5c'/%3E%3Ctext x='32' y='43' font-size='30' text-anchor='middle' fill='white' font-family='system-ui'%3E%E3%81%82%3C/text%3E%3C/svg%3E">
 <style>
-body{
-font-size:10pt;
-font-family:Verdana;
-background:white;
-}
+  :root {
+    color-scheme: dark;
+    --bg: #080b14;
+    --bg-soft: #0d1222;
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-strong: rgba(255, 255, 255, 0.085);
+    --border: rgba(255, 255, 255, 0.11);
+    --text: #eef2ff;
+    --muted: #9aa6c4;
+    --accent: #7c9cff;
+    --accent-2: #6ee7c7;
+    --accent-3: #ffb86b;
+    --danger: #ff7a90;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    --radius: 18px;
+    --font: "Inter", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f7ff;
+    --bg-soft: #e9edff;
+    --surface: rgba(255, 255, 255, 0.74);
+    --surface-strong: rgba(255, 255, 255, 0.96);
+    --border: rgba(20, 30, 70, 0.12);
+    --text: #131a30;
+    --muted: #5d6884;
+    --accent: #3f5cff;
+    --accent-2: #0f9f83;
+    --accent-3: #c46a00;
+    --danger: #d93b5c;
+    --shadow: 0 24px 80px rgba(40, 60, 140, 0.16);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(255, 184, 107, 0.16), transparent 60%),
+      radial-gradient(900px 700px at 95% 0%, rgba(124, 156, 255, 0.18), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .wrap { width: min(1180px, calc(100% - 36px)); margin: 0 auto; }
+
+  header.app-header {
+    position: sticky; top: 0; z-index: 40;
+    backdrop-filter: blur(18px);
+    background: color-mix(in srgb, var(--bg) 76%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-inner { display: flex; align-items: center; gap: 14px; min-height: 66px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .brand:hover { text-decoration: none; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent-3), #ff7a90);
+    color: #1a0d06; font-size: 18px; font-weight: 900;
+    box-shadow: 0 8px 22px rgba(255, 157, 92, 0.3);
+  }
+  .brand small { display: block; font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.1em; }
+  .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 11px; padding: 8px 13px; font-size: 13px; font-weight: 700;
+    transition: 0.18s ease; white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-strong); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #5b7cff); border-color: transparent; color: #fff; box-shadow: 0 10px 26px rgba(91, 124, 255, 0.32); }
+  .btn.primary:hover { box-shadow: 0 14px 34px rgba(91, 124, 255, 0.42); }
+  .btn.icon { width: 36px; height: 36px; padding: 0; font-size: 16px; }
+  .btn.danger { color: var(--danger); }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 11px; font-size: 12px; font-weight: 800; color: var(--muted);
+    background: var(--surface);
+  }
+  .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .status-pill.on { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); }
+  .status-pill.on .dot { background: var(--accent-2); box-shadow: 0 0 10px var(--accent-2); }
+  .status-pill.off .dot { background: var(--danger); }
+
+  main.app { padding: 28px 0 60px; }
+  .app-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+  .panel {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: linear-gradient(160deg, var(--surface-strong), var(--surface));
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .panel-head .title { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+  .panel-head .sub { font-size: 12px; color: var(--muted); }
+  .spacer { flex: 1; }
+
+  .editor-wrap { position: relative; padding: 16px; }
+  textarea#editor {
+    display: block; width: 100%; min-height: 340px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 13px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    color: var(--text); padding: 16px 18px;
+    font-family: var(--font); font-size: 19px; line-height: 1.9;
+    outline: none; transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    caret-color: var(--accent-2);
+  }
+  textarea#editor:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+  textarea#editor::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+
+  .editor-footer {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 0 16px 14px; font-size: 12px; color: var(--muted);
+  }
+  .editor-footer .grow { flex: 1; }
+  .kbd-hint { font-size: 12px; color: var(--muted); }
+  kbd {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    border: 1px solid var(--border); border-bottom-width: 2px;
+    background: var(--surface-strong); border-radius: 6px;
+    padding: 1px 6px; white-space: nowrap;
+  }
+
+  /* floating composition + candidates */
+  .composition {
+    position: fixed; z-index: 60;
+    max-width: min(620px, calc(100vw - 24px));
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+    background: color-mix(in srgb, var(--bg-soft) 94%, transparent);
+    box-shadow: 0 14px 44px rgba(0, 0, 0, 0.4);
+    border-radius: 11px; padding: 8px 11px;
+    font-size: 18px; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-word;
+    pointer-events: none;
+  }
+  .composition .seg { transition: color 0.1s ease; }
+  .composition .seg.focus {
+    color: var(--accent-3);
+    background: color-mix(in srgb, var(--accent-3) 16%, transparent);
+    border-radius: 4px; padding: 0 2px;
+    text-decoration: underline;
+    text-decoration-color: var(--accent-3);
+    text-underline-offset: 3px;
+  }
+  .composition .seg.other { color: var(--text); }
+  .composition .seg.yomi { color: var(--muted); }
+  .composition .pending { opacity: 0.45; }
+
+  .candidates {
+    position: fixed; z-index: 61;
+    min-width: 220px; max-width: min(520px, calc(100vw - 24px));
+    max-height: 320px; overflow: auto;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-soft) 96%, transparent);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    border-radius: 12px; padding: 6px;
+    backdrop-filter: blur(14px);
+  }
+  .cand-item {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    border: 0; background: transparent; border-radius: 8px;
+    padding: 8px 10px; text-align: left; font-size: 16px; line-height: 1.4;
+    transition: background 0.1s ease;
+  }
+  .cand-item:hover { background: var(--surface-strong); }
+  .cand-item.selected { background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--text); font-weight: 700; }
+  .cand-item .num { flex: none; width: 19px; height: 19px; border-radius: 5px; display: grid; place-items: center; font-size: 10px; font-weight: 800; font-family: var(--mono); background: var(--surface-strong); color: var(--muted); }
+  .cand-item.selected .num { background: var(--accent); color: #fff; }
+  .cand-item .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cand-more { font-size: 11px; color: var(--muted); padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .addl-row { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 6px 6px; }
+  .addl-chip { font-size: 12px; border: 1px solid var(--border); border-radius: 7px; padding: 3px 7px; color: var(--muted); background: var(--surface); }
+  .addl-chip.on { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); }
+  .addl-chip small { font-size: 9px; opacity: 0.7; margin-left: 3px; }
+
+  .side { display: grid; gap: 14px; }
+  .card {
+    border: 1px solid var(--border); border-radius: 15px;
+    background: var(--surface); padding: 16px;
+  }
+  .card h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .engine-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .engine-row + .engine-row { margin-top: 8px; }
+  .engine-row .label { color: var(--muted); }
+  .engine-row .value { font-weight: 700; text-align: right; }
+  .progress { height: 6px; border-radius: 999px; background: var(--surface-strong); overflow: hidden; margin-top: 10px; }
+  .progress > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.2s ease; }
+  .status-line { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .status-line.error { color: var(--danger); }
+  .status-line.ok { color: var(--accent-2); }
+
+  .key-list { display: grid; gap: 7px; }
+  .key-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+  .key-row .keys { display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end; }
+
+  .sample { font-size: 13px; color: var(--muted); }
+  .sample button { margin-top: 10px; width: 100%; }
+
+  footer.app-footer { border-top: 1px solid var(--border); padding: 24px 0 40px; font-size: 12px; color: var(--muted); }
+  footer.app-footer .links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg); border-radius: 10px;
+    padding: 9px 16px; font-size: 13px; font-weight: 700;
+    opacity: 0; pointer-events: none; transition: 0.2s ease; z-index: 90;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 980px) {
+    .app-grid { grid-template-columns: 1fr; }
+    .side { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 680px) {
+    .wrap { width: calc(100% - 24px); }
+    .header-inner { gap: 8px; }
+    .brand small { display: none; }
+    .header-actions .label { display: none; }
+    textarea#editor { min-height: 260px; font-size: 17px; }
+    .side { grid-template-columns: 1fr; }
+    .candidates { max-height: 240px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
 </style>
 </head>
 <body>
-
-<h1>Japanese IME</h1>
-
-<div id="version">
-Javascript Japanese IME / Javascriptによる日本語IME実装<br />
-Version 0.50 beta (2009/08/13)<br />
-</div>
-
-
-<!--style type="text/css">
-@import url(http://www.google.com/cse/api/branding.css);
-</style-->
-<div class="cse-branding-right" style="background-color:#FFFFFF;color:#000000">
-  <div class="cse-branding-form">
-	<form action="http://www.google.co.jp/cse" id="cse-search-box" target="_blank">
-	  <div>
-		<input type="hidden" name="cx" value="partner-pub-3971375039517858:j42atw-ea9n" />
-		<input type="hidden" name="ie" value="UTF-8" />
-		<input type="text" name="q" size="38" id="vje_adsense" class="searchbox"/>
-		<input type="submit" name="sa" value="&#x691c;&#x7d22;" />
-	  </div>
-	</form>
+<header class="app-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">あ</span>
+      <span>JSIM<small>JAPANESE IME</small></span>
+    </a>
+    <span id="ime-pill" class="status-pill on"><span class="dot"></span><span id="ime-pill-text">日本語入力 ON</span></span>
+    <div class="header-actions">
+      <button class="btn" id="toggle-btn" type="button" title="IME の ON / OFF (Ctrl+Space)"><span class="label">ON / OFF</span></button>
+      <a class="btn" href="index.html"><span class="label">ホーム</span></a>
+      <button class="btn icon" id="theme-btn" type="button" aria-label="テーマ切替" title="テーマ切替">◐</button>
+    </div>
   </div>
-  <div class="cse-branding-logo">
-	<!--img src="http://www.google.com/images/poweredby_transparent/poweredby_FFFFFF.gif" alt="Google" /-->
+</header>
+
+<main class="app">
+  <div class="wrap app-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <span class="title">日本語入力</span>
+        <span class="sub" id="engine-sub">エンジン準備中…</span>
+        <span class="spacer"></span>
+        <button class="btn" id="sample-btn" type="button">例文</button>
+        <button class="btn" id="copy-btn" type="button">コピー</button>
+        <button class="btn danger" id="clear-btn" type="button">クリア</button>
+      </div>
+      <div class="editor-wrap">
+        <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="ここをクリックして、ローマ字で入力してください。例: konnichiha → こんにちは"></textarea>
+      </div>
+      <div class="editor-footer">
+        <span id="char-count">0 文字</span>
+        <span class="grow"></span>
+        <span class="kbd-hint"><kbd>Ctrl</kbd>+<kbd>Space</kbd> で ON/OFF · <kbd>Space</kbd> で変換 · <kbd>Enter</kbd> で確定</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Engine</h3>
+        <div class="engine-row"><span class="label">変換エンジン</span><span class="value">Mozc WASM</span></div>
+        <div class="engine-row"><span class="label">セッション</span><span class="value" id="hechima-version">—</span></div>
+        <div class="engine-row"><span class="label">学習</span><span class="value" id="learn-state">—</span></div>
+        <div class="progress"><i id="progress-bar"></i></div>
+        <div class="status-line" id="engine-status">辞書を読み込んでいます…</div>
+      </div>
+
+      <div class="card">
+        <h3>Key bindings</h3>
+        <div class="key-list">
+          <div class="key-row"><span>IME ON / OFF</span><span class="keys"><kbd>Ctrl</kbd><kbd>Space</kbd> / <kbd>Alt</kbd><kbd>`</kbd></span></div>
+          <div class="key-row"><span>変換 / 次候補</span><span class="keys"><kbd>Space</kbd></span></div>
+          <div class="key-row"><span>前候補 / 追加候補</span><span class="keys"><kbd>Shift</kbd><kbd>Space</kbd></span></div>
+          <div class="key-row"><span>候補移動</span><span class="keys"><kbd>↑</kbd><kbd>↓</kbd></span></div>
+          <div class="key-row"><span>文節移動</span><span class="keys"><kbd>←</kbd><kbd>→</kbd></span></div>
+          <div class="key-row"><span>文節の伸縮</span><span class="keys"><kbd>Shift</kbd><kbd>←</kbd><kbd>→</kbd></span></div>
+          <div class="key-row"><span>確定</span><span class="keys"><kbd>Enter</kbd></span></div>
+          <div class="key-row"><span>取り消し</span><span class="keys"><kbd>Esc</kbd></span></div>
+          <div class="key-row"><span>候補リストをスクロール</span><span class="keys"><kbd>Tab</kbd></span></div>
+          <div class="key-row"><span>確定アンドゥ</span><span class="keys"><kbd>Ctrl</kbd><kbd>Backspace</kbd></span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Tips</h3>
+        <p class="sample">OS 側の日本語 IME をオフにして使ってください。候補はクリックでも選べます。数字キー <kbd>1</kbd>–<kbd>9</kbd> は候補の直接選択です。</p>
+        <button class="btn" id="toggle-btn-2" type="button">IME を ON / OFF</button>
+      </div>
+    </aside>
   </div>
-  <div class="cse-branding-text">
-	&#12459;&#12473;&#12479;&#12512;&#26908;&#32034;
+</main>
+
+<footer class="app-footer">
+  <div class="wrap">
+    <div>Powered by <a href="https://github.com/google/mozc" target="_blank" rel="noopener">Mozc</a> (BSD-3-Clause) · <a href="https://github.com/msonrm/hechima" target="_blank" rel="noopener">hechima</a> (MIT) · Original JSIM by <a href="http://colspan.net/" target="_blank" rel="noopener">Colspan</a> (MIT)</div>
+    <div class="links">
+      <a href="index.html">ホーム</a>
+      <a href="korean.html">韓国語 IME</a>
+      <a href="THIRD_PARTY_NOTICES.md">サードパーティライセンス</a>
+      <a href="https://github.com/colspan/jsim4" target="_blank" rel="noopener">GitHub</a>
+    </div>
   </div>
-</div>
+</footer>
 
-<form name="search" onsubmit="JSIM_Search();return false;">
-<input type="text" id="vje_for_search" size="38" class="searchbox">
-<input type="submit" name="search" value="検索">
-<select name="engine" id="engineList">
-<option value="http://search.yahoo.co.jp/search?p=">Yahoo! Japan</option>
-<option value="http://search.goo.ne.jp/web.jsp?from=query&MT=">goo</option>
-</select>
-</form>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<form name="japanese">
-<textarea id="japaneseime"></textarea>
-</form>
+<script src="vendor/hechima/hechima.js?v=0.25.0"></script>
+<script>
+(() => {
+  "use strict";
 
-<script type="text/javascript" src="lib/jsim_common.js"></script>
-<script type="text/javascript" src="lib/jsim_keycode.js"></script>
-<script type="text/javascript" src="lib/jsim_caret.js"></script>
-<script type="text/javascript" src="lib/jsim.js"></script>
-<script type="text/javascript" src="lib/roma.js"></script>
-<script type="text/javascript" src="lib/jsim_vje.js"></script>
+  const $ = (id) => document.getElementById(id);
+  const editor = $("editor");
+  const compositionEl = $("composition") || document.createElement("div");
+  const candidatesEl = $("candidates") || document.createElement("div");
+  compositionEl.className = "composition";
+  compositionEl.setAttribute("aria-live", "polite");
+  compositionEl.setAttribute("aria-atomic", "true");
+  candidatesEl.className = "candidates";
+  compositionEl.hidden = true;
+  candidatesEl.hidden = true;
+  document.body.appendChild(compositionEl);
+  document.body.appendChild(candidatesEl);
 
-<script type="text/javascript">
-vjeObj = new JSIM( document.getElementById( 'japaneseime' ), JS_IM_vje4 );
-vje_for_search_Obj = new JSIM( document.getElementById( 'vje_for_search' ), JS_IM_vje4 );
-vje_adsense_Obj = new JSIM( document.getElementById( 'vje_adsense' ), JS_IM_vje4 );
-function JSIM_Search(){ // requires vje_for_search_Obj
-  var queryWord = vje_for_search_Obj.imeBox.value;
-  var baseUrl = $( 'engineList' ).value;
-  var url = baseUrl + encodeURIComponent( queryWord );
-  window.open( url, '_blank' );
-}
+  const imePill = $("ime-pill");
+  const imePillText = $("ime-pill-text");
+  const engineSub = $("engine-sub");
+  const engineStatus = $("engine-status");
+  const progressBar = $("progress-bar");
+  const hechimaVersion = $("hechima-version");
+  const learnState = $("learn-state");
+  const charCount = $("char-count");
+  const toastEl = $("toast");
+  const themeBtn = $("theme-btn");
 
+  let active = true;
+  let lastSegments = [];
+  let candidatesOpen = false;
+
+  if (typeof Hechima === "undefined") {
+    engineStatus.textContent = "hechima.js を読み込めませんでした。ページを再読み込みしてください。";
+    engineStatus.className = "status-line error";
+    engineSub.textContent = "エンジン未読込";
+    imePillText.textContent = "エンジン未読込";
+    imePill.classList.remove("on");
+    return;
+  }
+
+  const mb = (n) => (n / 1024 / 1024).toFixed(1);
+
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove("show"), 1600);
+  }
+
+  function updateCharCount() {
+    charCount.textContent = `${editor.value.length.toLocaleString("ja-JP")} 文字`;
+  }
+
+  function updateImeUI() {
+    imePill.classList.toggle("on", active);
+    imePill.classList.toggle("off", !active);
+    imePillText.textContent = active ? "日本語入力 ON" : "日本語入力 OFF";
+    if (!active) hideOverlays();
+  }
+
+  function setActive(on) {
+    active = fep.setActive(on);
+    updateImeUI();
+    editor.focus();
+    showToast(active ? "日本語入力 ON" : "日本語入力 OFF");
+  }
+
+  function hideOverlays() {
+    compositionEl.hidden = true;
+    candidatesEl.hidden = true;
+    candidatesOpen = false;
+    lastSegments = [];
+  }
+
+  // ---- caret position mirror -------------------------------------------------
+
+  const MIRROR_PROPS = [
+    "boxSizing", "width", "height",
+    "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+    "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing",
+    "lineHeight", "textTransform", "wordSpacing", "textIndent",
+    "whiteSpace", "wordWrap", "wordBreak", "overflowWrap"
+  ];
+
+  function caretPoint() {
+    const ta = editor;
+    const style = getComputedStyle(ta);
+    const mirror = document.createElement("div");
+    mirror.style.position = "absolute";
+    mirror.style.visibility = "hidden";
+    mirror.style.top = "0";
+    mirror.style.left = "-9999px";
+    mirror.style.whiteSpace = "pre-wrap";
+    mirror.style.wordWrap = "break-word";
+    mirror.style.overflowWrap = "break-word";
+    for (const prop of MIRROR_PROPS) mirror.style[prop] = style[prop];
+    mirror.style.width = style.width;
+    mirror.style.height = style.height;
+    mirror.textContent = ta.value.slice(0, ta.selectionStart);
+    const marker = document.createElement("span");
+    marker.textContent = "\u200b";
+    mirror.appendChild(marker);
+    document.body.appendChild(mirror);
+    const rect = ta.getBoundingClientRect();
+    const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.7;
+    const x = rect.left + marker.offsetLeft - ta.scrollLeft + parseFloat(style.borderLeftWidth || "0");
+    const y = rect.top + marker.offsetTop - ta.scrollTop + parseFloat(style.borderTopWidth || "0");
+    mirror.remove();
+    return { x, y, lineHeight };
+  }
+
+  function placeOverlays() {
+    if (compositionEl.hidden) return;
+    const point = caretPoint();
+    const margin = 10;
+    compositionEl.style.left = "0px";
+    compositionEl.style.top = "0px";
+    const cw = compositionEl.offsetWidth;
+    const ch = compositionEl.offsetHeight;
+    let left = Math.min(point.x, window.innerWidth - cw - margin);
+    left = Math.max(margin, left);
+    let top = point.y + point.lineHeight + 8;
+    if (top + ch > window.innerHeight - margin) {
+      top = Math.max(margin, point.y - ch - 8);
+    }
+    compositionEl.style.left = `${left}px`;
+    compositionEl.style.top = `${top}px`;
+
+    if (candidatesOpen) {
+      candidatesEl.style.left = "0px";
+      candidatesEl.style.top = "0px";
+      const cw2 = candidatesEl.offsetWidth;
+      const ch2 = candidatesEl.offsetHeight;
+      let left2 = Math.min(left, window.innerWidth - cw2 - margin);
+      left2 = Math.max(margin, left2);
+      let top2 = top + ch + 6;
+      if (top2 + ch2 > window.innerHeight - margin) {
+        top2 = Math.max(margin, top - ch2 - 6);
+      }
+      candidatesEl.style.left = `${left2}px`;
+      candidatesEl.style.top = `${top2}px`;
+    }
+  }
+
+  // ---- rendering -------------------------------------------------------------
+
+  function renderSegments(segments) {
+    lastSegments = segments || [];
+    if (!segments || segments.length === 0) {
+      hideOverlays();
+      return;
+    }
+    compositionEl.innerHTML = "";
+    for (const seg of segments) {
+      const span = document.createElement("span");
+      span.className = `seg ${seg.kind || "yomi"}`;
+      if (seg.kind === "yomi" && seg.pending > 0) {
+        const chars = Array.from(seg.text);
+        const pending = Math.min(seg.pending, chars.length);
+        const main = chars.slice(0, chars.length - pending).join("");
+        const rest = chars.slice(chars.length - pending).join("");
+        span.textContent = main;
+        const pendingSpan = document.createElement("span");
+        pendingSpan.className = "pending";
+        pendingSpan.textContent = rest;
+        span.appendChild(pendingSpan);
+      } else {
+        span.textContent = seg.text;
+      }
+      compositionEl.appendChild(span);
+    }
+    compositionEl.hidden = false;
+    renderCandidates();
+    requestAnimationFrame(placeOverlays);
+  }
+
+  function currentFocus() {
+    return lastSegments.find((s) => s.kind === "focus") || null;
+  }
+
+  function renderCandidates() {
+    const focus = currentFocus();
+    candidatesEl.innerHTML = "";
+    if (!focus || !focus.candidates || focus.candidates.length === 0) {
+      candidatesEl.hidden = true;
+      candidatesOpen = false;
+      return;
+    }
+    candidatesOpen = true;
+    candidatesEl.hidden = false;
+
+    if (focus.additional && focus.additional.length > 0) {
+      const row = document.createElement("div");
+      row.className = "addl-row";
+      focus.additional.forEach((item, i) => {
+        const chip = document.createElement("span");
+        chip.className = "addl-chip" + (focus.additionalIndex === i ? " on" : "");
+        chip.textContent = item.text;
+        const note = document.createElement("small");
+        note.textContent = item.annotation;
+        chip.appendChild(note);
+        row.appendChild(chip);
+      });
+      candidatesEl.appendChild(row);
+    }
+
+    focus.candidates.forEach((candidate, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "cand-item" + (focus.candidateIndex === index ? " selected" : "");
+      button.dataset.index = String(index);
+      const num = document.createElement("span");
+      num.className = "num";
+      num.textContent = index < 9 ? String(index + 1) : "·";
+      const txt = document.createElement("span");
+      txt.className = "txt";
+      txt.textContent = candidate;
+      button.appendChild(num);
+      button.appendChild(txt);
+      button.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        if (fep.selectCandidate(index)) {
+          renderSegments(lastSegments);
+          editor.focus();
+        }
+      });
+      candidatesEl.appendChild(button);
+    });
+
+  }
+
+  // ---- text editing ----------------------------------------------------------
+
+  function insertAtCaret(text, focus = true) {
+    if (!text) return;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    let inserted = false;
+    if (focus) {
+      editor.focus();
+      try {
+        inserted = document.execCommand("insertText", false, text);
+      } catch (_) {
+        inserted = false;
+      }
+    }
+    if (!inserted) {
+      editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
+      editor.selectionStart = editor.selectionEnd = start + text.length;
+    }
+    updateCharCount();
+  }
+
+  function deleteBeforeCaret() {
+    editor.focus();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    if (start !== end) {
+      editor.setRangeText("", start, end, "end");
+    } else if (start > 0) {
+      editor.setRangeText("", start - 1, start, "end");
+    }
+    updateCharCount();
+  }
+
+  function moveCaret(delta) {
+    editor.focus();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const pos = delta < 0 ? start : end;
+    const next = Math.max(0, Math.min(editor.value.length, pos + delta));
+    editor.setSelectionRange(next, next);
+  }
+
+  // ---- hechima session -------------------------------------------------------
+
+  const worker = new Worker("vendor/hechima/hechima-worker.js?v=0.25.0");
+  worker.addEventListener("error", (e) => {
+    engineStatus.textContent = `エンジン worker の読み込みに失敗しました: ${e.message || "スクリプトを取得できません"}`;
+    engineStatus.className = "status-line error";
+  });
+
+  const conn = Hechima.connectWorker(worker, {
+    maxCands: 50,
+    onProgress: (loaded, total) => {
+      const pct = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+      progressBar.style.width = `${pct}%`;
+      engineStatus.textContent = total > 0
+        ? `辞書を取得中… ${mb(loaded)} / ${mb(total)} MB`
+        : `辞書を取得中… ${mb(loaded)} MB`;
+      engineStatus.className = "status-line";
+    }
+  });
+
+  const fep = Hechima.createFep({
+    show(segments) {
+      renderSegments(segments);
+    },
+    hide() {
+      hideOverlays();
+    },
+    commit(text) {
+      hideOverlays();
+      insertAtCaret(text, document.activeElement === editor);
+    },
+    hostKey(name) {
+      if (name === "Backspace") deleteBeforeCaret();
+      else if (name === "ArrowLeft") moveCaret(-1);
+      else if (name === "ArrowRight") moveCaret(1);
+    },
+    retract(text) {
+      const start = editor.selectionStart;
+      if (!editor.value.slice(0, start).endsWith(text)) return false;
+      editor.setRangeText("", start - text.length, start, "end");
+      updateCharCount();
+      return true;
+    },
+    ...conn.callbacks()
+  });
+
+  fep.setActive(true);
+  updateImeUI();
+
+  conn.init({
+    wasmJs: new URL("vendor/hechima-wasm/hechima-wasm.js", location.href).href,
+    dataUrl: new URL("vendor/hechima-wasm/mozc.data", location.href).href
+  }).then((info) => {
+    progressBar.style.width = "100%";
+    engineStatus.textContent = "準備完了 — Mozc 実変換が利用できます";
+    engineStatus.className = "status-line ok";
+    engineSub.textContent = `Mozc WASM · hechima v${info.version}`;
+    hechimaVersion.textContent = `v${info.version}`;
+    learnState.textContent = info.features.learn
+      ? (info.features.persist ? "ON（保存あり）" : "ON（この環境では保存なし）")
+      : "OFF";
+  }).catch((e) => {
+    engineStatus.textContent = `エンジン初期化失敗: ${e.message} — かな/カタカナのフォールバックで動作します`;
+    engineStatus.className = "status-line error";
+    engineSub.textContent = "フォールバック変換";
+    hechimaVersion.textContent = "—";
+    learnState.textContent = "—";
+  });
+
+  // ---- keyboard routing ------------------------------------------------------
+
+  const MOD = (e) => e.ctrlKey || e.altKey || e.metaKey;
+
+  function toggleIme() {
+    setActive(!active);
+  }
+
+  function reconvertSelection() {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    if (start === end) return false;
+    const surface = editor.value.slice(start, end);
+    if (!surface || surface.includes("\n") || Array.from(surface).length > 64) return false;
+    editor.setRangeText("", start, end, "end");
+    updateCharCount();
+    fep.reconvert(surface).then((ok) => {
+      if (!ok) insertAtCaret(surface);
+    }).catch(() => insertAtCaret(surface));
+    return true;
+  }
+
+  editor.addEventListener("keydown", (e) => {
+    // OS / browser shortcuts are left alone (except the IME toggle we own).
+    if (e.metaKey) return;
+
+    // IME toggle: modern default Ctrl+Space, macOS-style Alt+`
+    if ((e.ctrlKey && !e.altKey && e.code === "Space") ||
+        (e.altKey && !e.ctrlKey && e.code === "Backquote")) {
+      e.preventDefault();
+      toggleIme();
+      return;
+    }
+
+    // Japanese keyboard keys: 英数 / かな
+    if (e.code === "Lang1") { e.preventDefault(); setActive(false); return; }
+    if (e.code === "Lang2" || e.code === "KanaMode") { e.preventDefault(); setActive(true); return; }
+
+    // Reconvert selected text: JIS Convert key or Ctrl+/
+    if (e.code === "Convert" && editor.selectionStart !== editor.selectionEnd) {
+      if (reconvertSelection()) { e.preventDefault(); return; }
+    }
+    if (e.ctrlKey && !e.altKey && e.key === "/") {
+      if (reconvertSelection()) { e.preventDefault(); return; }
+    }
+
+    // Candidate direct selection by number
+    if (candidatesOpen && !MOD(e) && /^[1-9]$/.test(e.key)) {
+      if (fep.selectCandidate(Number(e.key) - 1)) {
+        e.preventDefault();
+        renderSegments(lastSegments);
+        return;
+      }
+    }
+
+    // Tab scrolls through a long candidate list
+    if (e.key === "Tab" && candidatesOpen && !MOD(e)) {
+      const maxScroll = candidatesEl.scrollHeight - candidatesEl.clientHeight;
+      if (maxScroll > 0) {
+        e.preventDefault();
+        const step = Math.max(40, Math.floor(candidatesEl.clientHeight * 0.8));
+        candidatesEl.scrollTop = candidatesEl.scrollTop + step > maxScroll ? 0 : candidatesEl.scrollTop + step;
+        return;
+      }
+    }
+
+    // JIS Convert / NonConvert: map to Space / Escape while composing
+    if (e.code === "Convert") {
+      if (fep.feed({ key: " ", code: "Space", shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey })) {
+        e.preventDefault();
+        return;
+      }
+    }
+    if (e.code === "NonConvert") {
+      if (fep.feed({ key: "Escape", code: "Escape" })) {
+        e.preventDefault();
+        return;
+      }
+    }
+
+    if (fep.feed(e)) {
+      e.preventDefault();
+      return;
+    }
+    // Keys the session did not consume fall through to the native textarea.
+  });
+
+  editor.addEventListener("keyup", (e) => {
+    fep.feedUp(e);
+  });
+
+  // Commit the composition before the caret moves or focus leaves the editor.
+  editor.addEventListener("mousedown", () => {
+    if (active && lastSegments.length > 0) {
+      fep.feed({ key: "Enter", code: "Enter" });
+    }
+  });
+  editor.addEventListener("blur", () => {
+    if (active && lastSegments.length > 0) {
+      fep.feed({ key: "Enter", code: "Enter" });
+    }
+  });
+
+  editor.addEventListener("input", updateCharCount);
+  editor.addEventListener("scroll", () => {
+    if (!compositionEl.hidden) placeOverlays();
+  });
+  window.addEventListener("scroll", () => {
+    if (!compositionEl.hidden) placeOverlays();
+  }, { passive: true });
+  window.addEventListener("resize", () => {
+    if (!compositionEl.hidden) placeOverlays();
+  });
+
+  // ---- UI controls -----------------------------------------------------------
+
+  $("toggle-btn").addEventListener("click", toggleIme);
+  $("toggle-btn-2").addEventListener("click", toggleIme);
+
+  $("clear-btn").addEventListener("click", () => {
+    editor.value = "";
+    updateCharCount();
+    hideOverlays();
+    editor.focus();
+    showToast("クリアしました");
+  });
+
+  $("copy-btn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(editor.value);
+      showToast("コピーしました");
+    } catch (_) {
+      editor.select();
+      document.execCommand("copy");
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+      showToast("コピーしました");
+    }
+  });
+
+  $("sample-btn").addEventListener("click", () => {
+    const sample = "きょうはいいてんきですね。とうきょうにすんでいます。";
+    editor.value = sample;
+    updateCharCount();
+    editor.focus();
+    editor.setSelectionRange(sample.length, sample.length);
+    showToast("例文を入れました");
+  });
+
+  // theme
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem("jsim-theme"); } catch (_) {}
+  const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    themeBtn.textContent = theme === "dark" ? "☀" : "☾";
+    try { localStorage.setItem("jsim-theme", theme); } catch (_) {}
+  }
+  setTheme(initialTheme);
+  themeBtn.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+
+  updateCharCount();
+  editor.focus();
+})();
 </script>
-
-<div id="explanation">
-<strong>
-On / Off : Shift + Space<br />
-変換開始 : Space<br />
-候補選択 : Space ↑ ↓<br />
-文節移動 : ← →, 確定 : Enter<br />
-強制かな : F6, 強制カナ : F7
-</strong>
-</div>
-
-<div id="credit">
-<a href="javascript:(function(){var s=document.createElement('script');s.charset='utf-8';s.src='http://colspan.net/japaneseime/bookmarklet/loader_japanese.js';document.body.appendChild(s);})();">Japanese IME Bookmarklet(Embed)</a><br />
-<a href="http://colspan.net/hangulime/">Hangul IME</a><br /><br />
-
-by <a href="http://colspan.net/">Colspan</a> / License: <a href="http://www.opensource.org/licenses/mit-license.php">MIT License</a><br />
-powered by <a href="http://la.ma.la/">roma.js</a>, <a href="http://202.248.69.143/~goma/">utf.js</a>,<a href="http://d.hatena.ne.jp/project_the_tower2/">caret.js</a>,<br />
-
-<!-- Begin Yahoo! JAPAN Web Services Attribution Snippet -->
-<span style="margin:15px 15px 15px 15px"><a href="http://developer.yahoo.co.jp/about">Webサービス by Yahoo! JAPAN</a></span>
-<!-- End Yahoo! JAPAN Web Services Attribution Snippet -->
-
-</div>
-
-<br clear="all" />
-
-<h2>操作方法</h2>
-<p>テキストボックス上でローマ字入力をすると日本語を入力できます。変換を始めるにはSpaceキーを押してください。</p>
-<p>変換中の文字列や変換候補は画面右側に出ます。<br />
-文節の移動は候補リスト表示中に左右の矢印キーで行い、候補の選択は上下キーおよびSpaceキーで行います。<br />
-変換中のすべての文節を確定するには次の文字列を入力し始めるか、Enterキーを押して下さい。</p>
-<p>Shift + SpaceでIMEを有効/無効にできます。</p>
-<p></p>
-<p>※ Firefoxで開発・動作確認中です。ほかの環境では不安定であったり、動作しない場合があります。</p>
-
-<h2>未実装の機能</h2>
-<ul>
-<li>学習・ユーザ辞書</li>
-<li>文節の切り直し</li>
-<li>データ取得遅延対策</li>
-</ul>
-
 </body>
 </html>
-
