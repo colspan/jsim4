@@ -1,16 +1,14 @@
 # Third-Party Notices
 
-本リポジトリは Mozc に由来するビルド成果物（`site/public/vendor/hechima-wasm/` の
-`hechima-wasm.js` / `hechima-wasm.wasm` と辞書 `mozc.data`）を再配布しています —
-**powered by Mozc**。各構成要素のライセンスと著作権表示を以下に再掲します
-（pin している正確な版は [site/public/vendor/VENDOR.md](site/public/vendor/VENDOR.md) と
-同梱の BUILD_INFO.txt を参照）。
+このリポジトリは、Mozc に由来する WASM ビルド成果物と辞書
+（`vendor/hechima-wasm/` の `hechima-wasm.js` / `hechima-wasm.wasm` /
+`mozc.data.gz`）を再配布しています — **powered by Mozc**。
+また、変換セッション層として hechima（MIT）を同梱しています。
+各構成要素のライセンスと著作権表示を以下に再掲します。
+ビルドの provenance は `vendor/hechima-wasm/BUILD_INFO.txt` を参照してください。
 
-自作部分（サイトと、`hechima` / `hechima-keymap` / `flick-engine` / `gamepad-engine` の
-各バンドル）のライセンスは [LICENSE](LICENSE)（MIT、Copyright (c) 2026 msonrm）です。
-
-`/qr/`（QR で受け取る）のページには **jsQR** を、`/remote/`（別の端末をキーボードにする）のページには
-**QR Code Generator** を同梱しています（下記）。
+このリポジトリの自作部分（HTML ページと韓国語ハングル合成器）は
+[LICENSE](LICENSE)（MIT）です。
 
 ## Mozc（変換エンジン本体・wasm バイナリのコード部分）
 
@@ -46,6 +44,36 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+## hechima（変換セッション層）
+
+- **Repository:** https://github.com/msonrm/hechima
+- **License:** MIT
+- **Version:** hechima v0.25.0（`vendor/hechima/hechima.js` / `hechima-worker.js`）
+
+```
+MIT License
+
+Copyright (c) 2026 msonrm
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ## fcitx5-mozc（ビルドハーネス）
@@ -144,51 +172,4 @@ Files: src/data/dictionary*
 Public Domain Dataです。使用・変更・配布に関しては一切の制限をつけません。
 商品などに組み込むことも自由に行なってください。すでにいくつかの辞書には沖縄辞書が採用されています。
 勝手ながら、沖縄辞書に寄贈された辞書も in the Public Domain' 扱いとさせていただきます。
-```
-
-## jsQR（`/qr/` の QR 読み取り）
-
-`/qr/` のページに、カメラ画像から QR コードを読むために同梱しています
-（npm の `jsqr`。ビルド時にページのバンドルへ取り込まれます）。
-
-- **Repository:** https://github.com/cozmo/jsQR
-- **License:** Apache-2.0
-- **Version:** 1.4.0
-
-```
-Copyright 2018 Cosmo Wolfe
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
-
-## QR Code Generator（`/remote/` の QR 生成）
-
-`/remote/` のページに、キーボード側の端末へ渡す URL を QR コードにするために同梱しています
-（npm の `qrcode-generator`。ビルド時にページのバンドルへ取り込まれます）。
-
-- **Repository:** https://github.com/kazuhikoarase/qrcode-generator
-- **License:** MIT
-- **Version:** 1.4.4
-
-```
-Copyright (c) 2009 Kazuhiko Arase
-
-URL: http://www.d-project.com/
-
-Licensed under the MIT license:
-  http://www.opensource.org/licenses/mit-license.php
-
-The word 'QR Code' is registered trademark of
-DENSO WAVE INCORPORATED
-  http://www.denso-wave.com/qrcode/faqpatent-e.html
 ```
